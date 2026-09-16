@@ -1,0 +1,147 @@
+@page "/"
+@using TGDev.Experimentation01.Services
+@inject PipelineService Pipeline
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<div class="page-parchment page-transition">
+
+    <header class="page-header">
+        <h1>De l'actualité au portefeuille</h1>
+        <p class="subtitle">Anatomie d'une expérimentation IA — pilotage des 7 étapes</p>
+    </header>
+
+    @{
+        var phases = Pipeline.Etapes.Select(e => e.Phase).Distinct().ToList();
+    }
+
+    @for (int p = 0; p < phases.Count; p++)
+    {
+        var phase = phases[p];
+        var etapesDeLaPhase = Pipeline.Etapes.Where(e => e.Phase == phase).ToList();
+
+        <section class="phase-section">
+            <h2 class="phase-title">@phase</h2>
+
+            @* Rangée en flux horizontal : une flèche relie chaque étape à la suivante
+               pour matérialiser le sens de parcours au sein de la phase. *@
+            <div class="steps-flow">
+                @for (int i = 0; i < etapesDeLaPhase.Count; i++)
+                {
+                    var etape = etapesDeLaPhase[i];
+
+                    <div class="step-card status-@etape.Statut.ToString().ToLower()">
+                        <div class="step-card-header">
+                            <i class="bi @etape.Icone"></i>
+                            <span class="step-number">Étape @etape.Numero</span>
+                        </div>
+                        <h3>@etape.Titre</h3>
+                        <p class="step-desc">@etape.Description</p>
+
+                        <div class="step-actions">
+                            <button class="btn-executer"
+                                    disabled="@(etape.Statut == StepStatus.EnCours)"
+                                    @onclick="() => ExecuterAsync(etape.Numero)">
+                                    @if(etape.Numero == 7)
+                                    {
+                                        <span>Ouvrir le simulateur</span>
+                                    }
+                                    else if (etape.Statut == StepStatus.EnCours)
+                                {
+                                    <span>Exécution en cours...</span>
+                                }
+                                else if (etape.Statut == StepStatus.Termine)
+                                {
+                                    <span>Relancer</span>
+                                }
+                                else
+                                {
+                                    <span>Exécuter</span>
+                                }
+                            </button>
+
+                            @if (etape.Statut == StepStatus.EnCours)
+                            {
+                                <button class="btn-annuler" @onclick="() => Pipeline.AnnulerEtape(etape.Numero)">
+                                    Annuler
+                                </button>
+                            }
+                        </div>
+
+                        <div class="step-status">
+                            <span class="badge">@LibelleStatut(etape.Statut)</span>
+                            @if (etape.DerniereExecution is not null)
+                            {
+                                <span class="last-run">Dernière exécution : @etape.DerniereExecution.Value.ToString("HH:mm:ss")</span>
+                            }
+                        </div>
+
+                        @if (etape.Journal.Count > 0)
+                        {
+                            <details class="step-log">
+                                <summary>Journal (@etape.Journal.Count)</summary>
+                                <ul>
+                                    @foreach (var ligne in etape.Journal)
+                                    {
+                                        <li>@ligne</li>
+                                    }
+                                </ul>
+                            </details>
+                        }
+                    </div>
+
+                    @if (i < etapesDeLaPhase.Count - 1)
+                    {
+                        <i class="bi bi-arrow-right flow-arrow" aria-hidden="true"></i>
+                    }
+                }
+            </div>
+        </section>
+
+        @if (p < phases.Count - 1)
+        {
+            <div class="phase-connector">
+                <i class="bi bi-arrow-down" aria-hidden="true"></i>
+            </div>
+        }
+    }
+
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Chaque changement d'état (déclenché depuis le service) redessine la page.
+        Pipeline.OnChange += StateHasChangedFromService;
+    }
+
+    private async Task ExecuterAsync(int numeroEtape)
+    {
+        // L'étape 7 (simulateur) ouvre un écran dédié plutôt que de s'exécuter 
+        // directement sur cette page. - voir Pages/Simulateur.razor.
+        if(numeroEtape == 7)
+        {
+            Navigation.NavigateTo("/simulateur");
+            return;
+        }
+        // Chaque bouton appelle uniquement SON étape : les étapes s'exécutent
+        // indépendamment les unes des autres, dans l'ordre choisi par l'utilisateur.
+        await Pipeline.ExecuterEtapeAsync(numeroEtape);
+    }
+
+    private void StateHasChangedFromService() => InvokeAsync(StateHasChanged);
+
+    private static string LibelleStatut(StepStatus statut) => statut switch
+    {
+        StepStatus.EnAttente => "En attente",
+        StepStatus.EnCours => "En cours",
+        StepStatus.Termine => "Terminé",
+        StepStatus.Erreur => "Erreur",
+        _ => statut.ToString()
+    };
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= StateHasChangedFromService;
+    }
+}

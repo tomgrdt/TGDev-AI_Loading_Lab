@@ -1,0 +1,87 @@
+@inherits LayoutComponentBase
+@using TGDev.Experimentation01.Services
+@inject PipelineService Pipeline
+@implements IDisposable
+
+<div class="app-shell">
+
+    <main>
+        @Body
+    </main>
+
+    @* Bouton d'ouverture, visible uniquement quand le panneau est replié. *@
+    <button class="results-toggle @(estOuvert ? "is-hidden" : "")"
+            @onclick="Ouvrir"
+            title="Afficher les résultats des étapes">
+        <i class="bi bi-layout-sidebar-inset-reverse"></i>
+    </button>
+
+    @* Panneau rétractable : 1/3 de l'écran une fois déplié, glisse depuis la droite. *@
+    <aside class="results-panel @(estOuvert ? "is-open" : "")">
+        <div class="results-panel-header">
+            <h2>Résultats des étapes</h2>
+            <button class="results-close" @onclick="Fermer" title="Masquer le panneau">
+                <i class="bi bi-x-lg"></i>
+            </button>
+        </div>
+
+        <div class="results-panel-body">
+            @foreach (var etape in Pipeline.Etapes)
+            {
+                <div class="result-block status-@etape.Statut.ToString().ToLower()">
+                    <div class="result-block-header">
+                        <span>Étape @etape.Numero</span>
+                        <span class="badge">@LibelleStatut(etape.Statut)</span>
+                    </div>
+                    <div class="result-step-title">@etape.Titre</div>
+
+                    @if (etape.Journal.Count == 0)
+                    {
+                        <p class="result-empty">Pas encore exécutée.</p>
+                    }
+                    else
+                    {
+                        <ul class="result-log">
+                            @foreach (var ligne in etape.Journal)
+                            {
+                                <li>@ligne</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
+        </div>
+    </aside>
+
+</div>
+
+@code {
+    private bool estOuvert = false;
+
+    protected override void OnInitialized()
+    {
+        // Le panneau reflète l'état du même PipelineService que les pages :
+        // toute exécution d'étape (sur l'écran principal ou le simulateur)
+        // met à jour son contenu automatiquement.
+        Pipeline.OnChange += RafraichirDepuisService;
+    }
+
+    private void Ouvrir() => estOuvert = true;
+    private void Fermer() => estOuvert = false;
+
+    private void RafraichirDepuisService() => InvokeAsync(StateHasChanged);
+
+    private static string LibelleStatut(StepStatus statut) => statut switch
+    {
+        StepStatus.EnAttente => "En attente",
+        StepStatus.EnCours => "En cours",
+        StepStatus.Termine => "Terminé",
+        StepStatus.Erreur => "Erreur",
+        _ => statut.ToString()
+    };
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= RafraichirDepuisService;
+    }
+}

@@ -1,0 +1,395 @@
+body {
+    margin: 0;
+    font-family: "Georgia", "Times New Roman", serif;
+    background-color: #f4ecdd;
+    color: #3b2f22;
+    background-image: url("../images/infographie-background.jpg");
+    background-repeat: no-repeat;
+    background-position: top center;
+    background-size: cover;
+    background-attachment: fixed;
+}
+
+.page-parchment {
+    max-width: 1100px;
+    margin: 2rem auto;
+    padding: 2rem 1.75rem 3rem;
+    background: rgba(244, 236, 221, 0.86);
+    border-radius: 14px;
+    box-shadow: 0 4px 18px rgba(59, 47, 34, 0.15);
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 2rem;
+    border-bottom: 2px solid #8a6d3b;
+    padding-bottom: 1rem;
+}
+
+    .page-header h1 {
+        font-size: 1.9rem;
+        margin: 0 0 0.25rem;
+        letter-spacing: 0.5px;
+    }
+
+.subtitle {
+    color: #6b5a44;
+    font-style: italic;
+    margin: 0;
+}
+
+.phase-section {
+    margin-bottom: 2rem;
+}
+
+.phase-title {
+    display: inline-block;
+    background: #8a6d3b;
+    color: #f4ecdd;
+    padding: 0.35rem 1rem;
+    border-radius: 4px;
+    font-size: 1rem;
+    margin-bottom: 1rem;
+}
+
+.steps-flow {
+    display: flex;
+    align-items: stretch;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+    .steps-flow .step-card {
+        flex: 1 1 200px;
+    }
+
+.flow-arrow {
+    align-self: center;
+    flex-shrink: 0;
+    font-size: 1.3rem;
+    color: #a3906b;
+}
+
+.phase-connector {
+    display: flex;
+    justify-content: center;
+    margin: 0.25rem 0 1.5rem;
+}
+
+    .phase-connector i {
+        font-size: 1.6rem;
+        color: #8a6d3b;
+    }
+
+.step-card {
+    background: #fffaf0;
+    border: 1px solid #d8c7a1;
+    border-radius: 10px;
+    padding: 1rem 1.1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    transition: border-color 0.2s ease;
+}
+
+    .step-card.status-encours {
+        border-color: #b5895a;
+    }
+
+    .step-card.status-termine {
+        border-color: #5f8a5a;
+    }
+
+    .step-card.status-erreur {
+        border-color: #a13c3c;
+    }
+
+.step-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #8a6d3b;
+    margin-bottom: 0.4rem;
+}
+
+.step-number {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+}
+
+.step-card h3 {
+    margin: 0 0 0.4rem;
+    font-size: 1.05rem;
+}
+
+.step-desc {
+    font-size: 0.85rem;
+    color: #5c4d3a;
+    margin: 0 0 0.9rem;
+    min-height: 2.4em;
+}
+
+.step-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.6rem;
+}
+
+.btn-executer, .btn-annuler {
+    font-family: inherit;
+    font-size: 0.85rem;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    border: 1px solid #8a6d3b;
+    background: #8a6d3b;
+    color: #fffaf0;
+    cursor: pointer;
+}
+
+    .btn-executer:disabled {
+        opacity: 0.6;
+        cursor: default;
+    }
+
+.btn-annuler {
+    background: transparent;
+    color: #8a6d3b;
+}
+
+.step-status {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+}
+
+.badge {
+    background: #eadfc4;
+    color: #5c4d3a;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+}
+
+.status-encours .badge {
+    background: #f1ddc0;
+    color: #8a5a1e;
+}
+
+.status-termine .badge {
+    background: #dfead9;
+    color: #3e6b39;
+}
+
+.status-erreur .badge {
+    background: #f3d6d6;
+    color: #8a2f2f;
+}
+
+.last-run {
+    color: #8a7a5f;
+}
+
+.step-log {
+    margin-top: 0.6rem;
+    font-size: 0.78rem;
+}
+
+    .step-log summary {
+        cursor: pointer;
+        color: #8a6d3b;
+    }
+
+    .step-log ul {
+        margin: 0.4rem 0 0;
+        padding-left: 1.1rem;
+        color: #5c4d3a;
+    }
+
+/* ==========================================================================
+   Panneau rétractable des résultats (ajouté dans Shared/MainLayout.razor)
+   ========================================================================== */
+
+.app-shell {
+    position: relative;
+    min-height: 100vh;
+}
+
+.results-toggle {
+    position: fixed;
+    top: 1rem;
+    right: 1rem;
+    z-index: 1000;
+    width: 44px;
+    height: 44px;
+    border: none;
+    border-radius: 8px;
+    background: #8a6d3b;
+    color: #fffaf0;
+    font-size: 1.1rem;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(59, 47, 34, 0.3);
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+    .results-toggle.is-hidden {
+        opacity: 0;
+        pointer-events: none;
+        transform: translateX(12px);
+    }
+
+.results-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 33.333vw;
+    min-width: 320px;
+    max-width: 520px;
+    height: 100vh;
+    background: #fffaf0;
+    border-left: 2px solid #8a6d3b;
+    box-shadow: -6px 0 20px rgba(59, 47, 34, 0.25);
+    transform: translateX(100%);
+    transition: transform 0.35s ease;
+    z-index: 999;
+    display: flex;
+    flex-direction: column;
+}
+
+    .results-panel.is-open {
+        transform: translateX(0);
+    }
+
+.results-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid #d8c7a1;
+    flex-shrink: 0;
+}
+
+    .results-panel-header h2 {
+        margin: 0;
+        font-size: 1.05rem;
+        color: #3b2f22;
+    }
+
+.results-close {
+    background: transparent;
+    border: none;
+    font-size: 1.1rem;
+    color: #8a6d3b;
+    cursor: pointer;
+}
+
+.results-panel-body {
+    padding: 1rem 1.25rem;
+    overflow-y: auto;
+    flex: 1;
+}
+
+.result-block {
+    background: #fdf8ec;
+    border: 1px solid #e3d6b8;
+    border-radius: 8px;
+    padding: 0.75rem 0.9rem;
+    margin-bottom: 0.85rem;
+}
+
+    .result-block.status-encours {
+        border-color: #b5895a;
+    }
+
+    .result-block.status-termine {
+        border-color: #5f8a5a;
+    }
+
+    .result-block.status-erreur {
+        border-color: #a13c3c;
+    }
+
+.result-block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #8a7a5f;
+    margin-bottom: 0.25rem;
+}
+
+.result-step-title {
+    font-weight: 600;
+    color: #3b2f22;
+    margin-bottom: 0.4rem;
+}
+
+.result-empty {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: #a3906b;
+    margin: 0;
+}
+
+.result-log {
+    margin: 0;
+    padding-left: 1.1rem;
+    font-size: 0.78rem;
+    color: #5c4d3a;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+@media (max-width: 720px) {
+    .results-panel {
+        width: 85vw;
+    }
+}
+
+/* ==========================================================================
+   Écran "Simulateur" (Pages/Simulateur.razor) + transition entre écrans
+   ========================================================================== */
+
+.simulateur-header {
+    position: relative;
+}
+
+.btn-retour {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+    padding: 0.4rem 0.9rem;
+    border: 1px solid #8a6d3b;
+    border-radius: 6px;
+    background: transparent;
+    color: #8a6d3b;
+    font-family: inherit;
+    font-size: 0.85rem;
+    cursor: pointer;
+}
+
+.btn-retour:hover {
+    background: #8a6d3b;
+    color: #fffaf0;
+}
+
+.simulateur-flow {
+    justify-content: center;
+}
+
+/* Animation d'entrée rejouée à chaque navigation, car Blazor recrée l'élément
+   racine de la page lorsqu'on change de composant de route. */
+@keyframes pageEnter {
+    from {
+        opacity: 0;
+        transform: translateY(18px) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+.page-transition {
+    animation: pageEnter 0.45s ease;
+}

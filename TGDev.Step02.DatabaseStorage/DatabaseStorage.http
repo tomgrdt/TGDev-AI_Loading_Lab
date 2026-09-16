@@ -1,0 +1,6 @@
+@TGDev.Step02.DatabaseStorage_HostAddress = http://localhost:5148
+
+GET {{TGDev.Step02.DatabaseStorage_HostAddress}}/databasestorage/
+Accept: application/json
+
+###

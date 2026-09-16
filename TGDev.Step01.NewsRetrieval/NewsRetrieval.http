@@ -1,0 +1,6 @@
+@TGDev.Step01.NewsRetrieval_HostAddress = http://localhost:5104
+
+GET {{TGDev.Step01.NewsRetrieval_HostAddress}}/feedfetcher/
+Accept: application/json
+
+###

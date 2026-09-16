@@ -1,0 +1,112 @@
+﻿@page "/simulateur"
+@using TGDev.Experimentation01.Services
+@inject PipelineService Pipeline
+@inject NavigationManager Navigation
+@implements IDisposable
+
+@* Même conteneur "page-parchment" que l'écran principal : même fond illustré,
+   même panneau translucide, même typographie. On ajoute juste "page-transition"
+   pour l'animation d'entrée (voir site.css : @@keyframes pageEnter). *@
+<div class="page-parchment page-transition">
+
+    <header class="page-header simulateur-header">
+        <button class="btn-retour" @onclick="RetourAccueil">
+            <i class="bi bi-arrow-left"></i> Retour à l'accueil
+        </button>
+        <h1>Simulateur de placements</h1>
+        <p class="subtitle">Confrontation des prédictions du modèle aux résultats obtenus</p>
+    </header>
+
+    @{
+        var etape7 = Pipeline.Etapes.First(e => e.Numero == 7);
+    }
+
+    <section class="phase-section">
+        <div class="steps-flow simulateur-flow">
+            <div class="step-card status-@etape7.Statut.ToString().ToLower()">
+                <div class="step-card-header">
+                    <i class="bi @etape7.Icone"></i>
+                    <span class="step-number">Étape @etape7.Numero</span>
+                </div>
+                <h3>@etape7.Titre</h3>
+                <p class="step-desc">@etape7.Description</p>
+
+                <div class="step-actions">
+                    <button class="btn-executer"
+                            disabled="@(etape7.Statut == StepStatus.EnCours)"
+                            @onclick="() => Pipeline.ExecuterEtapeAsync(7)">
+                        @if (etape7.Statut == StepStatus.EnCours)
+                        {
+                            <span>Simulation en cours...</span>
+                        }
+                        else if (etape7.Statut == StepStatus.Termine)
+                        {
+                            <span>Relancer la simulation</span>
+                        }
+                        else
+                        {
+                            <span>Lancer la simulation</span>
+                        }
+                    </button>
+
+                    @if (etape7.Statut == StepStatus.EnCours)
+                    {
+                        <button class="btn-annuler" @onclick="() => Pipeline.AnnulerEtape(7)">
+                            Annuler
+                        </button>
+                    }
+                </div>
+
+                <div class="step-status">
+                    <span class="badge">@LibelleStatut(etape7.Statut)</span>
+                    @if (etape7.DerniereExecution is not null)
+                    {
+                        <span class="last-run">Dernière exécution : @etape7.DerniereExecution.Value.ToString("HH:mm:ss")</span>
+                    }
+                </div>
+
+                @if (etape7.Journal.Count > 0)
+                {
+                    <details class="step-log" open>
+                        <summary>Journal (@etape7.Journal.Count)</summary>
+                        <ul>
+                            @foreach (var ligne in etape7.Journal)
+                            {
+                                <li>@ligne</li>
+                            }
+                        </ul>
+                    </details>
+                }
+            </div>
+        </div>
+    </section>
+
+</div>
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Le service PipelineService est Scoped : c'est la même instance que sur
+        // l'écran principal (même circuit Blazor), donc le journal de l'étape 7
+        // est déjà partagé automatiquement entre les deux écrans.
+        Pipeline.OnChange += Rafraichir;
+    }
+
+    private void Rafraichir() => InvokeAsync(StateHasChanged);
+
+    private void RetourAccueil() => Navigation.NavigateTo("/");
+
+    private static string LibelleStatut(StepStatus statut) => statut switch
+    {
+        StepStatus.EnAttente => "En attente",
+        StepStatus.EnCours => "En cours",
+        StepStatus.Termine => "Terminé",
+        StepStatus.Erreur => "Erreur",
+        _ => statut.ToString()
+    };
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= Rafraichir;
+    }
+}
