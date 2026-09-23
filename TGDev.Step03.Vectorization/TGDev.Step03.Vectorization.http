@@ -1,0 +1,6 @@
+@TGDev.Step03.Vectorization_HostAddress = http://localhost:5298
+
+GET {{TGDev.Step03.Vectorization_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

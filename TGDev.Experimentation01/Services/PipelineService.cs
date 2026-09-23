@@ -23,13 +23,22 @@ public class PipelineService
     private HttpClient _httpClient;
 
     public List<PipelineStep> Etapes { get; }
+    
+    /// <summary>Étape actuellement affichée dans le dashboard (pilotée par la barre d'onglets).</summary>
+    public int EtapeSelectionnee { get; set; } = 1;
 
     public event Action? OnChange;
 
-    public PipelineService()
+    public PipelineService(IConfiguration configuration)
     {
         _sharedService = new SharedService();
         _httpClient = new HttpClient();
+
+        var newsRetrieverUrl = configuration["NewsRetrieval:BaseUrl"] ?? "https://localhost:7056";
+        var newsRetrieverSwaggerUrl = string.IsNullOrWhiteSpace(newsRetrieverUrl) ? null : $"{newsRetrieverUrl.TrimEnd('/')}/swagger/index.html";
+
+        var databaseStorageUrl = configuration["DatabaseStorage:BaseUrl"] ?? "https://localhost:7170";
+        var databaseStorageSwaggerUrl = string.IsNullOrWhiteSpace(databaseStorageUrl) ? null : $"{databaseStorageUrl.TrimEnd('/')}/swagger/index.html";
 
         Etapes = new List<PipelineStep>
         {
@@ -40,6 +49,7 @@ public class PipelineService
                 Titre = "Collecter l'information",
                 Description = "Récupère les dernières actualités : géopolitique, économie & finance, banques & marchés, nouvelles technologies.",
                 Icone = "bi-newspaper",
+                SwaggerUrl = newsRetrieverSwaggerUrl,
                 Executer = Step1_NewsFetcherAsync
             },
             new()
@@ -49,6 +59,7 @@ public class PipelineService
                 Titre = "Constituer une base de connaissances",
                 Description = "Stocke les actualités collectées dans une base de données structurée.",
                 Icone = "bi-database",
+                SwaggerUrl = databaseStorageSwaggerUrl,
                 Executer = Etape2_ConstituerBaseAsync
             },
             new()
@@ -113,7 +124,12 @@ public class PipelineService
 
         etape.Statut = StepStatus.EnCours;
         etape.Journal.Clear();
-        Log(etape, $"Démarrage de l'étape {etape.Numero} — {etape.Titre}");
+        etape.Indicateurs.Clear();
+        etape.Progression = 0;
+        etape.NombreErreurs = 0;
+        var chrono = System.Diagnostics.Stopwatch.StartNew();
+
+        Log(etape, NiveauJournal.Info, $"Démarrage de l'expérimentation — Étape {etape.Numero} : {etape.Titre}");
         NotifyChange();
 
         try
@@ -121,24 +137,30 @@ public class PipelineService
             await etape.Executer(etape, cts.Token);
             etape.Statut = StepStatus.Termine;
             etape.DerniereExecution = DateTime.Now;
-            Log(etape, "Étape terminée avec succès.");
+            etape.Progression = 100;
+            Log(etape, NiveauJournal.Success, "Étape terminée avec succès.");
         }
         catch (OperationCanceledException)
         {
             etape.Statut = StepStatus.EnAttente;
-            Log(etape, "Étape annulée.");
+            Log(etape, NiveauJournal.Warn, "Étape annulée.");
         }
         catch (Exception ex)
         {
             etape.Statut = StepStatus.Erreur;
-            Log(etape, $"Erreur : {ex.Message}");
+            etape.NombreErreurs++;
+            Log(etape, NiveauJournal.Error, $"Erreur : {ex.Message}");
         }
         finally
         {
+            chrono.Stop();
+            etape.Duree = chrono.Elapsed;
             _executionsEnCours.Remove(numeroEtape);
             NotifyChange();
         }
     }
+
+    public void SelectionnerEtape(int numeroEtape) => EtapeSelectionnee = numeroEtape;
 
     public void AnnulerEtape(int numeroEtape)
     {
@@ -148,8 +170,11 @@ public class PipelineService
         }
     }
 
-    private void Log(PipelineStep etape, string message)
-        => etape.Journal.Add($"[{DateTime.Now:HH:mm:ss}] {message}");
+    private void Log(PipelineStep etape, NiveauJournal niveau, string message)
+    {
+        etape.Journal.Add(new JournalEntry { Niveau = niveau, Message = message });
+        NotifyChange();
+    }
 
     private void NotifyChange() => OnChange?.Invoke();
 
@@ -161,19 +186,37 @@ public class PipelineService
     {
 
         ct.ThrowIfCancellationRequested();
-        
+
         var url = "https://localhost:7056/api/feedfetcher";
+        int total = 0;
 
-        var response = await _httpClient.GetAsync(url, ct);
-        response.EnsureSuccessStatusCode();
+        try
+        {
+            var response = await _httpClient.GetAsync(url, ct);
+            response.EnsureSuccessStatusCode();
 
-        _sharedService.FeedFetcherJsonResult = await response.Content.ReadAsStringAsync(ct);
+            _sharedService.FeedFetcherJsonResult = await response.Content.ReadAsStringAsync(ct);
+            total = _sharedService.FeedFetcherJsonResult.Split("\"title\"").Count() - 1; // Compte le nombre d'articles récupérés
 
-        Log(step, $"{_sharedService.FeedFetcherJsonResult.Split("\"title\"").Count() - 1} articles récupérés sur le web.");
+            Log(step, NiveauJournal.Success, $"{total} articles récupérés sur le web.");
+        }
+        catch (HttpRequestException ex)
+        {
+            step.NombreErreurs++;
+            Log(step, NiveauJournal.Error, $"Echec FeedFetcher — {ex.Message}");
+        }
+
+        step.Progression = 100;
+        step.Resume = $"{total} articles";
+        step.Indicateurs.Add(new KpiItem { Icone = "bi-file-earmark-text", Valeur = total.ToString(), Label = "Articles trouvés" });
+        Log(step, NiveauJournal.Info, $"Total : {total} article(s) collecté(s).");
     }
 
     private async Task Etape2_ConstituerBaseAsync(PipelineStep step, CancellationToken ct)
     {
+        step.SousTitreProgression = "Insertion en base de données";
+        step.DetailProgression = $"{_sharedService.FeedFetcherJsonResult.Split("\"title\"").Count() - 1} articles à enregistrer";
+
         var url = "https://localhost:7170/api/databasestorage";
 
         var response = await _httpClient.PostAsync(url, new StringContent(_sharedService.FeedFetcherJsonResult, Encoding.UTF8, "application/json"), ct);
@@ -189,19 +232,23 @@ public class PipelineService
 
         _sharedService.DatabaseStorageResult = await response.Content.ReadFromJsonAsync<IEnumerable<NewsItemModel>>(ct);
 
-        Log(step, $"{_sharedService.DatabaseStorageResult.Count()} articles insérés dans la base de connaissances.");
+        int total = _sharedService.DatabaseStorageResult!.Count();
+
+        step.Resume = $"{total} enregistrements";
+        step.Indicateurs.Add(new KpiItem { Icone = "bi-database-check", Valeur = total.ToString(), Label = "Enregistrements insérés" });
+        Log(step, NiveauJournal.Success, $"{total} articles insérés dans la base de connaissances.");
     }
 
     private async Task Etape3_VectoriserAsync(PipelineStep etape, CancellationToken ct)
     {
         await Task.Delay(700, ct); // TODO : appeler un modèle d'embeddings et stocker dans une base vectorielle (Qdrant, pgvector, etc.)
-        Log(etape, "Vectorisation terminée (dimension 1536, 42 vecteurs indexés).");
+        Log(etape, NiveauJournal.Success, "Vectorisation terminée (dimension 1536, 42 vecteurs indexés).");
     }
 
     private async Task Etape4_EnrichirLLMAsync(PipelineStep etape, CancellationToken ct)
     {
         await Task.Delay(900, ct); // TODO : brancher un LLM local (Ollama, LM Studio...) en logique RAG sur la base vectorielle
-        Log(etape, "Contexte RAG chargé dans le LLM local.");
+        Log(etape, NiveauJournal.Success, "Contexte RAG chargé dans le LLM local.");
     }
 
     private async Task Etape5_UniversInvestissementAsync(PipelineStep etape, CancellationToken ct)
@@ -211,19 +258,19 @@ public class PipelineService
         {
             ct.ThrowIfCancellationRequested();
             await Task.Delay(300, ct); // TODO : appeler une API de données de marché (ex. données boursières)
-            Log(etape, $"Ajouté à l'univers : {titre}");
+            Log(etape, NiveauJournal.Success, $"Ajouté à l'univers : {titre}");
         }
     }
 
     private async Task Etape6_AnalyseLLMAsync(PipelineStep etape, CancellationToken ct)
     {
         await Task.Delay(1000, ct); // TODO : envoyer l'univers + contexte RAG au LLM enrichi pour analyse
-        Log(etape, "Titres à privilégier identifiés avec échéancier associé.");
+        Log(etape, NiveauJournal.Success, "Titres à privilégier identifiés avec échéancier associé.");
     }
 
     private async Task Etape7_SimulateurAsync(PipelineStep etape, CancellationToken ct)
     {
         await Task.Delay(800, ct); // TODO : brancher un simulateur de placements (paper trading) et comparer aux prédictions
-        Log(etape, "Simulation exécutée : prédictions confrontées aux résultats obtenus.");
+        Log(etape, NiveauJournal.Success, "Simulation exécutée : prédictions confrontées aux résultats obtenus.");
     }
 }

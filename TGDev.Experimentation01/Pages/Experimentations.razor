@@ -1,0 +1,21 @@
+﻿@page "/experimentations"
+@using TGDev.Experimentation01.Services
+@inject NavigationManager Navigation
+
+<CentralPanel Titre="Expérimentations" Icone="bi-flask" Description="Liste des laboratoires en cours et passés" />
+
+    @* NOTE : liste codée en dur pour l'instant — il n'existe qu'une seule
+       expérimentation modélisée (celle pilotée par PipelineService). Le jour
+       où plusieurs expérimentations existeront, cette liste viendra d'un
+       vrai service (ex. IExperimentationRepository) plutôt que d'être statique. *@
+    <div class="exp-list">
+        <div class="exp-card" @onclick='() => Navigation.NavigateTo("/")'>
+            <div class="exp-card-icon"><i class="bi bi-flask"></i></div>
+            <div class="exp-card-body">
+                <div class="exp-card-title">Expérimentation #01</div>
+                <div class="exp-card-desc">Analyse de l'actualité et opportunités d'investissement</div>
+            </div>
+            <span class="badge badge-actif">Actif</span>
+            <i class="bi bi-arrow-right exp-card-arrow"></i>
+        </div>
+    </div>

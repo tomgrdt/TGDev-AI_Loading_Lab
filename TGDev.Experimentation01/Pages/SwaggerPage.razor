@@ -1,0 +1,62 @@
+﻿@page "/swagger-ui"
+@using TGDev.Experimentation01.Services
+@inject PipelineService Pipeline
+
+<div class="page-content page-transition">
+
+    <div class="page-content-header">
+        <h1>Swagger</h1>
+        <p class="subtitle">Documentation des API de chaque étape de l'expérimentation</p>
+    </div>
+
+    <div class="swagger-accordion">
+        @foreach (var etape in Pipeline.Etapes)
+        {
+            var estOuverte = etapesOuvertes.Contains(etape.Numero);
+
+            <div class="swagger-accordion-item">
+                <button class="swagger-accordion-header" @onclick="() => Basculer(etape.Numero)">
+                    <span class="swagger-accordion-badge"><i class="bi @etape.Icone"></i></span>
+                    <span class="swagger-accordion-title">Étape @etape.Numero.ToString("D2") — @etape.Titre</span>
+                    @if (etape.SwaggerUrl is null)
+                    {
+                        <span class="badge badge-pending">Pas encore de module</span>
+                    }
+                    <i class="bi bi-chevron-down swagger-accordion-chevron @(estOuverte ? "is-open" : "")"></i>
+                </button>
+
+                @if (estOuverte)
+                {
+                    <div class="swagger-accordion-body">
+                        @if (etape.SwaggerUrl is not null)
+                        {
+                            <iframe class="swagger-embed" src="@etape.SwaggerUrl" title="Swagger — @etape.Titre"></iframe>
+                        }
+                        else
+                        {
+                            <p class="empty-hint">
+                                <i class="bi bi-hourglass-split"></i>
+                                Aucun module API dédié pour cette étape pour le moment — elle tourne encore uniquement dans le pipeline du Host.
+                            </p>
+                        }
+                    </div>
+                }
+            </div>
+        }
+    </div>
+
+</div>
+
+@code {
+    // Numéros des étapes actuellement dépliées. Plusieurs accordéons peuvent
+    // rester ouverts en même temps (pas de mode "un seul à la fois").
+    private readonly HashSet<int> etapesOuvertes = new();
+
+    private void Basculer(int numeroEtape)
+    {
+        if (!etapesOuvertes.Add(numeroEtape))
+        {
+            etapesOuvertes.Remove(numeroEtape);
+        }
+    }
+}

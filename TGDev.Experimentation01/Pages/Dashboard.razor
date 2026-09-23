@@ -1,0 +1,333 @@
+﻿@page "/"
+@using TGDev.Experimentation01.Services
+@inject PipelineService Pipeline
+@implements IDisposable
+
+<div class="page-content page-transition">
+
+    <section class="hero-card">
+        <div class="hero-left">
+            <div class="hero-icon"><i class="bi bi-flask"></i></div>
+            <div>
+                <div class="hero-eyebrow"><i class="bi bi-flask"></i> EXPÉRIMENTATION #01</div>
+                <h1>Analyse de l'actualité et opportunités d'investissement</h1>
+                <p class="hero-desc">Collecter les dernières actualités, les analyser avec un LLM local et identifier des opportunités d'investissement.</p>
+            </div>
+        </div>
+
+        <div class="hero-sketch">
+            <p>Une idée<br />→<br />Des données<br />→<br />Un LLM<br />→<br />Des opportunités ?</p>
+        </div>
+
+        <div class="hero-meta">
+            <div class="hero-meta-row">
+                <span>Projet</span>
+                <span class="badge badge-actif">Actif</span>
+            </div>
+            <div class="hero-meta-title">Exp. #01</div>
+            <div class="hero-meta-line"><i class="bi bi-clock-history"></i> @DateHeureDemarrage</div>
+            <div class="hero-meta-line">Durée : @DureeTotale</div>
+        </div>
+    </section>
+
+    @* -------------------------------------------------------------
+       Barre d'onglets des 7 étapes : remplace l'ancien tracker en
+       cercles reliés par une ligne. Chaque onglet sélectionne
+       l'étape dont le détail s'affiche plus bas (journal, progression,
+       indicateurs) — la navigation entre étapes se fait donc ici.
+       ------------------------------------------------------------- *@
+    <nav class="step-tabs">
+        @foreach (var etape in Pipeline.Etapes)
+        {
+            <button class="step-tab @(etape.Numero == Pipeline.EtapeSelectionnee ? "is-active" : "") status-@etape.Statut.ToString().ToLower()"
+                    @onclick="() => Selectionner(etape.Numero)">
+                <span class="step-tab-badge">
+                    @if (etape.Statut == StepStatus.Termine)
+                    {
+                        <i class="bi bi-check-lg"></i>
+                    }
+                    else if (etape.Statut == StepStatus.EnCours)
+                    {
+                        <i class="bi bi-arrow-repeat spin"></i>
+                    }
+                    else
+                    {
+                        <span>@etape.Numero.ToString("D2")</span>
+                    }
+                </span>
+                <span class="step-tab-text">
+                    <span class="step-tab-title">@etape.Titre</span>
+                    <span class="step-tab-sub">@etape.Resume</span>
+                </span>
+            </button>
+        }
+    </nav>
+
+    @{
+        var selection = Pipeline.Etapes.First(e => e.Numero == Pipeline.EtapeSelectionnee);
+    }
+
+    <div class="detail-grid">
+
+        <div class="detail-main">
+
+            <div class="tabs-panel">
+                <div class="tabs-panel-header">
+                    <div class="inner-tabs">
+                        <button class="inner-tab @(ongletActif == "journal" ? "is-active" : "")" @onclick='() => ongletActif = "journal"'>Journal</button>
+                        <button class="inner-tab @(ongletActif == "resultats" ? "is-active" : "")" @onclick='() => ongletActif = "resultats"'>Résultats</button>
+                        <button class="inner-tab @(ongletActif == "details" ? "is-active" : "")" @onclick='() => ongletActif = "details"'>Détails</button>
+                    </div>
+                    <label class="realtime-toggle">
+                        Mode temps réel
+                        <input type="checkbox" checked disabled />
+                        <span class="toggle-track"><span class="toggle-thumb"></span></span>
+                    </label>
+                </div>
+
+                @if (ongletActif == "journal")
+                {
+                    <div class="journal-table">
+                        @if (selection.Journal.Count == 0)
+                        {
+                            <p class="empty-hint">Aucune entrée — lance l'étape pour voir le journal ici.</p>
+                        }
+                        else
+                        {
+                            @foreach (var ligne in selection.Journal)
+                            {
+                                <div class="journal-row">
+                                    <span class="journal-time">@ligne.Horodatage.ToString("HH:mm:ss")</span>
+                                    <span class="journal-level niveau-@ligne.Niveau.ToString().ToLower()">@LibelleNiveau(ligne.Niveau)</span>
+                                    <span class="journal-message">@ligne.Message</span>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else if (ongletActif == "resultats")
+                {
+                    <div class="resultats-grid">
+                        @if (selection.Indicateurs.Count == 0)
+                        {
+                            <p class="empty-hint">Pas encore de résultat pour cette étape.</p>
+                        }
+                        else
+                        {
+                            @foreach (var kpi in selection.Indicateurs)
+                            {
+                                <div class="resultat-item">
+                                    <i class="bi @kpi.Icone"></i>
+                                    <div>
+                                        <div class="resultat-valeur">@kpi.Valeur</div>
+                                        <div class="resultat-label">@kpi.Label</div>
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                }
+                else
+                {
+                    <div class="details-list">
+                        <div><span>Numéro</span><span>@selection.Numero</span></div>
+                        <div><span>Phase</span><span>@selection.Phase</span></div>
+                        <div><span>Statut</span><span>@LibelleStatut(selection.Statut)</span></div>
+                        <div><span>Dernière exécution</span><span>@(selection.DerniereExecution?.ToString("dd/MM/yyyy HH:mm:ss") ?? "—")</span></div>
+                        <div><span>Durée</span><span>@(selection.Duree is { } d ? $"{d.TotalSeconds:0.0} s" : "—")</span></div>
+                    </div>
+                }
+            </div>
+
+            <div class="progress-card">
+                <div class="progress-icon"><i class="bi @selection.Icone"></i></div>
+                <div class="progress-body">
+                    <div class="progress-title">@selection.Titre — @LibelleStatut(selection.Statut)</div>
+                    <div class="progress-sub">@(selection.SousTitreProgression ?? selection.Description)</div>
+                    <div class="progress-bar-track">
+                        <div class="progress-bar-fill" style="width:@(selection.Progression)%"></div>
+                    </div>
+                    @if (!string.IsNullOrEmpty(selection.DetailProgression))
+                    {
+                        <div class="progress-footnote"><i class="bi bi-clock"></i> @selection.DetailProgression</div>
+                    }
+                </div>
+                <div class="progress-stats">
+                    <div><span>Traité(s)</span><strong>@selection.Traites</strong></div>
+                    <div><span>Restant(s)</span><strong>@selection.Restants</strong></div>
+                    <div><span>Vitesse</span><strong>@(selection.Vitesse ?? "—")</strong></div>
+                </div>
+                <div class="progress-actions">
+                    <button class="status-btn @ClasseBouton(selection.Statut)"
+                            disabled="@(selection.Statut == StepStatus.EnCours)"
+                            @onclick="() => ExecuterAsync(selection.Numero)">
+                        @LibelleBouton(selection.Statut)
+                    </button>
+                </div>
+            </div>
+
+        </div>
+
+        <aside class="detail-side">
+
+            <div class="side-card">
+                <div class="side-card-header">
+                    <span><i class="bi bi-graph-up-arrow"></i> Indicateurs de l'étape</span>
+                    <span class="badge badge-@ClasseBadge(selection.Statut)">@LibelleStatut(selection.Statut)</span>
+                </div>
+                <div class="kpi-grid">
+                    @{
+                        var kpis = selection.Indicateurs.Take(2).ToList();
+                    }
+                    @foreach (var kpi in kpis)
+                    {
+                        <div class="kpi-tile">
+                            <i class="bi @kpi.Icone"></i>
+                            <div class="kpi-valeur">@kpi.Valeur</div>
+                            <div class="kpi-label">@kpi.Label</div>
+                        </div>
+                    }
+                    <div class="kpi-tile">
+                        <i class="bi bi-clock-history"></i>
+                        <div class="kpi-valeur">@(selection.Duree is { } d2 ? $"{d2.TotalSeconds:0.0} s" : "—")</div>
+                        <div class="kpi-label">Durée d'exécution</div>
+                    </div>
+                    <div class="kpi-tile">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        <div class="kpi-valeur">@selection.NombreErreurs</div>
+                        <div class="kpi-label">Erreur</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="side-card">
+                <div class="side-card-header"><span><i class="bi bi-x-circle"></i> Dernières erreurs</span></div>
+                @{
+                    var erreurs = selection.Journal.Where(j => j.Niveau == NiveauJournal.Error).ToList();
+                }
+                @if (erreurs.Count == 0)
+                {
+                    <p class="empty-hint"><i class="bi bi-check-circle"></i> Aucune erreur à ce stade.</p>
+                }
+                else
+                {
+                    <ul class="error-list">
+                        @foreach (var e in erreurs)
+                        {
+                            <li>@e.Message</li>
+                        }
+                    </ul>
+                }
+            </div>
+
+            <div class="side-card">
+                <div class="side-card-header">
+                    <span><i class="bi bi-journal-text"></i> Notes de l'expérimentation</span>
+                    <button class="link-btn" @onclick="() => modeEdition = !modeEdition">
+                        <i class="bi bi-pencil"></i> @(modeEdition ? "Fermer" : "Éditer")
+                    </button>
+                </div>
+                @if (modeEdition)
+                {
+                    <textarea class="notes-textarea" @bind="notes"></textarea>
+                }
+                else
+                {
+                    <p class="notes-text">@notes</p>
+                }
+            </div>
+
+            @{
+                var suivante = Pipeline.Etapes.FirstOrDefault(e => e.Numero == selection.Numero + 1);
+            }
+            @if (suivante is not null)
+            {
+                <div class="side-card next-step-card" @onclick="() => Selectionner(suivante.Numero)">
+                    <div class="side-card-header"><span><i class="bi bi-signpost-2"></i> Prochaine étape</span></div>
+                    <div class="next-step-body">
+                        <div class="next-step-icon"><i class="bi @suivante.Icone"></i></div>
+                        <div>
+                            <div class="next-step-title">Étape @suivante.Numero.ToString("D2") — @suivante.Titre</div>
+                            <div class="next-step-desc">@suivante.Description</div>
+                        </div>
+                        <i class="bi bi-arrow-right"></i>
+                    </div>
+                </div>
+            }
+
+        </aside>
+
+    </div>
+
+</div>
+
+@code {
+    private string ongletActif = "journal";
+    private bool modeEdition = false;
+    private string notes = "Prochaine étape : analyser les tendances et détecter les opportunités !";
+
+    private readonly DateTime debutExperimentation = DateTime.Now;
+    private string DateHeureDemarrage => debutExperimentation.ToString("dd/MM/yyyy - HH:mm");
+    private string DureeTotale => $"{(DateTime.Now - debutExperimentation).Minutes}m {(DateTime.Now - debutExperimentation).Seconds}s";
+
+    protected override void OnInitialized()
+    {
+        Pipeline.OnChange += Rafraichir;
+    }
+
+    private void Selectionner(int numero) => Pipeline.SelectionnerEtape(numero);
+
+    private async Task ExecuterAsync(int numeroEtape)
+    {
+        await Pipeline.ExecuterEtapeAsync(numeroEtape);
+    }
+
+    private void Rafraichir() => InvokeAsync(StateHasChanged);
+
+    private static string ClasseBouton(StepStatus statut) => statut switch
+    {
+        StepStatus.Termine => "done",
+        StepStatus.EnCours => "running",
+        StepStatus.Erreur => "error",
+        _ => "pending"
+    };
+
+    private static string ClasseBadge(StepStatus statut) => statut switch
+    {
+        StepStatus.Termine => "success",
+        StepStatus.EnCours => "running",
+        StepStatus.Erreur => "error",
+        _ => "pending"
+    };
+
+    private static string LibelleBouton(StepStatus statut) => statut switch
+    {
+        StepStatus.Termine => "Relancer",
+        StepStatus.EnCours => "En cours…",
+        StepStatus.Erreur => "Réessayer",
+        _ => "Exécuter"
+    };
+
+    private static string LibelleStatut(StepStatus statut) => statut switch
+    {
+        StepStatus.EnAttente => "En attente",
+        StepStatus.EnCours => "En cours",
+        StepStatus.Termine => "Succès",
+        StepStatus.Erreur => "Erreur",
+        _ => statut.ToString()
+    };
+
+    private static string LibelleNiveau(NiveauJournal niveau) => niveau switch
+    {
+        NiveauJournal.Info => "INFO",
+        NiveauJournal.Success => "SUCCESS",
+        NiveauJournal.Warn => "WARN",
+        NiveauJournal.Error => "ERROR",
+        _ => niveau.ToString()
+    };
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= Rafraichir;
+    }
+}

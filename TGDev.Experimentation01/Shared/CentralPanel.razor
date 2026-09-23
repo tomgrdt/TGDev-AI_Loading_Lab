@@ -1,0 +1,14 @@
+﻿<div class="page-content page-transition">
+    <div class="side-card" style="max-width:480px;margin:2rem auto;text-align:center;">
+        <div class="side-card-header" style="justify-content:center;">
+            <span><i class="bi @Icone"></i> @Titre</span>
+        </div>
+        <p class="empty-hint" style="text-align:center;">@Description</p>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string Titre { get; set; } = "";
+    [Parameter] public string Description { get; set; } = "Cette section arrive bientôt.";
+    [Parameter] public string Icone { get; set; } = "bi-hourglass-split";
+}
