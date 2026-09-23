@@ -1,9 +1,9 @@
 <Solution>
   <Folder Name="/Experimentation #01/">
-    <Project Path="TGDev.Experimentation01/TGDev.Experimentation01.csproj" />
-    <Project Path="TGDev.Step01.NewsRetrieval/TGDev.Step01.NewsRetrieval.csproj" />
-    <Project Path="TGDev.Step02.DatabaseStorage/TGDev.Step02.DatabaseStorage.csproj" Id="813f1879-cdd2-4309-9423-7937cd721551" />
-    <Project Path="TGDev.Step03.Vectorization/TGDev.Step03.Vectorization.csproj" Id="ad2a7e5b-204d-4177-90be-e2d45a7a310d" />
-    <Project Path="TGDev.StepS01.Shared/TGDev.StepS01.Shared.csproj" Id="4b265523-dd0f-4de6-9d1d-89e4d0b155e8" />
+    <Project Path="Experimentation #01/TGDev.Experimentation01/TGDev.Experimentation01.csproj" />
+    <Project Path="Experimentation #01/TGDev.Step01.NewsRetrieval/TGDev.Step01.NewsRetrieval.csproj" />
+    <Project Path="Experimentation #01/TGDev.Step02.DatabaseStorage/TGDev.Step02.DatabaseStorage.csproj" />
+    <Project Path="Experimentation #01/TGDev.Step03.Vectorization/TGDev.Step03.Vectorization.csproj" />
+    <Project Path="Experimentation #01/TGDev.StepS01.Shared/TGDev.StepS01.Shared.csproj" />
   </Folder>
 </Solution>
