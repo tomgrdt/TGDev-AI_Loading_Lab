@@ -1,0 +1,326 @@
+﻿@page "/"
+@rendermode InteractiveServer
+@using TGDev.Experimentation02.Creances
+@inject IComptesService Erp
+@inject IRedacteurRelance Redacteur
+
+<PageTitle>Suivi des comptes clients</PageTitle>
+
+<div class="shell">
+    <header class="top">
+        <div>
+            <h1>Suivi des comptes clients</h1>
+            <p>Assistant d'aide à la décision : l'IA analyse et propose, vous validez chaque action.</p>
+        </div>
+        <button class="btn" aria-expanded="@journalOuvert" @onclick="() => journalOuvert = !journalOuvert">
+            Journal des décisions (@journal.Count)
+        </button>
+    </header>
+
+    @if (!charge)
+    {
+        <p class="vide">Chargement des données de l'ERP…</p>
+    }
+    else
+    {
+        <div class="contenu">
+            <dl class="kpis">
+                <div><dt>Encours échu</dt><dd>@Fmt.Eur(comptes.Sum(c => analyses[c.Id].Echu))</dd></div>
+                <div><dt>Comptes à traiter</dt><dd>@comptes.Count(c => analyses[c.Id].Action != TypeAction.Surveiller && !traites.Contains(c.Id))</dd></div>
+                <div><dt>Avis d'expert requis</dt><dd>@comptes.Count(c => analyses[c.Id].NecessiteExpert && !traites.Contains(c.Id))</dd></div>
+                <div><dt>Décisions enregistrées</dt><dd>@journal.Count</dd></div>
+            </dl>
+
+            @if (journalOuvert)
+            {
+                <section class="journal" aria-label="Journal des décisions">
+                    <h3>Journal des décisions</h3>
+                    @if (journal.Count == 0)
+                    {
+                        <p class="vide">Aucune décision pour l'instant.</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var d in journal)
+                            {
+                                <li>
+                                    <span>@d.Date.ToString("dd/MM HH:mm")</span>
+                                    <strong>@d.Compte</strong>
+                                    <span>@d.Action, par @d.Utilisateur@(d.Commentaire.Length > 0 ? " : " + d.Commentaire : "")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            }
+
+            <div class="layout">
+                <aside class="zone-liste" aria-label="Comptes clients">
+                    <input class="recherche" type="search" placeholder="Rechercher un client" aria-label="Rechercher un client"
+                           @bind="recherche" @bind:event="oninput" />
+                    <div class="onglets" role="group" aria-label="Filtre">
+                        <button class="@Onglet("traiter")" @onclick='() => filtre = "traiter"'>À traiter</button>
+                        <button class="@Onglet("experts")" @onclick='() => filtre = "experts"'>Avis d'expert</button>
+                        <button class="@Onglet("tous")" @onclick='() => filtre = "tous"'>Tous</button>
+                    </div>
+                    <ul class="liste">
+                        @foreach (var c in Visibles())
+                        {
+                            var a = analyses[c.Id];
+                            <li>
+                                <button class="ligne @(sel?.Id == c.Id ? "actif" : "")" @onclick="() => Selectionner(c)">
+                                    <span class="l1"><span class="nom">@c.Nom</span><span class="montant">@Fmt.Eur(a.Echu)</span></span>
+                                    <span class="l2">@a.Libelle</span>
+                                    <span class="prio @Classe(a.Action)" title="Priorité @a.Priorite sur 100"><i style="width:@(a.Priorite)%"></i></span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </aside>
+
+                <main class="detail">
+                    @if (sel is null || rec is null)
+                    {
+                        <p class="vide">Aucun compte à afficher avec ce filtre.</p>
+                    }
+                    else
+                    {
+                        <div class="fiche">
+                            <header class="fiche-tete">
+                                <div>
+                                    <h2>@sel.Nom</h2>
+                                    <p>@sel.Contact, <a href="mailto:@sel.Email">@sel.Email</a></p>
+                                </div>
+                                <dl class="chiffres">
+                                    <div><dt>Encours</dt><dd>@Fmt.Eur(sel.Encours)</dd></div>
+                                    <div><dt>Autorisé</dt><dd>@Fmt.Eur(sel.EncoursAutorise)</dd></div>
+                                    <div><dt>Échu</dt><dd>@Fmt.Eur(rec.Echu)</dd></div>
+                                </dl>
+                            </header>
+
+                            <section class="reco @Classe(rec.Action)" aria-labelledby="t-reco">
+                                <h3 id="t-reco">Action recommandée par l'IA</h3>
+                                <p class="action">@rec.Libelle</p>
+                                <p class="indices">Priorité @rec.Priorite sur 100. Indice de confiance @rec.Confiance %. Proposition à valider.</p>
+                                <ul class="raisons">
+                                    @foreach (var raison in rec.Raisons)
+                                    {
+                                        <li>@raison</li>
+                                    }
+                                </ul>
+                                @if (rec.NecessiteExpert)
+                                {
+                                    <p class="expert"><strong>Avis d'expert requis.</strong> @rec.MotifExpert</p>
+                                }
+                                @if (rec.Sources.Count > 0)
+                                {
+                                    <p class="sources">
+                                        Références à contrôler avant envoi :
+                                        @foreach (var s in rec.Sources)
+                                        {
+                                            <a href="@s.Url" target="_blank" rel="noopener">@s.Titre</a>
+                                        }
+                                    </p>
+                                }
+                            </section>
+
+                            @if (PeutEnvoyer)
+                            {
+                                <section class="relance" aria-labelledby="t-rel">
+                                    <h3 id="t-rel">Relance personnalisée</h3>
+                                    <div class="tons" role="group" aria-label="Ton du message">
+                                        @foreach (var t in Enum.GetValues<Ton>())
+                                        {
+                                            <button class="chip @(t == ton ? "on" : "")" @onclick="() => ChangerTon(t)">@t</button>
+                                        }
+                                    </div>
+                                    <label>Objet <input @bind="objet" /></label>
+                                    <label>Message <textarea rows="13" @bind="corps"></textarea></label>
+                                    @if (rec.NecessiteExpert)
+                                    {
+                                        <label class="check"><input type="checkbox" @bind="valideParExpert" /> Un expert a relu et validé ce contenu</label>
+                                    }
+                                </section>
+                            }
+
+                            @if (traites.Contains(sel.Id))
+                            {
+                                <p class="fait">Décision enregistrée dans le journal pour ce compte.</p>
+                            }
+                            else
+                            {
+                                <section class="decision" aria-label="Décision">
+                                    <label>
+                                        Commentaire pour le journal <span class="aide">(obligatoire pour escalader ou écarter)</span>
+                                        <input @bind="commentaire" />
+                                    </label>
+                                    <div class="barre">
+                                        @if (PeutEnvoyer)
+                                        {
+                                            <button class="btn primaire" disabled="@(!EnvoiAutorise)" @onclick="Envoyer">Valider et envoyer la relance</button>
+                                        }
+                                        <select @bind="typeExpert" aria-label="Type d'expert">
+                                            <option>Juridique</option>
+                                            <option>Commercial</option>
+                                            <option>Direction financière</option>
+                                        </select>
+                                        <button class="btn" @onclick="Escalader">Escalader à un expert</button>
+                                        <button class="btn" @onclick="Reporter">Reporter de 7 jours</button>
+                                        <button class="btn discret" @onclick="Ecarter">Écarter la recommandation</button>
+                                    </div>
+                                </section>
+                            }
+
+                            <div class="deux">
+                                <section>
+                                    <h3>Factures ouvertes</h3>
+                                    <div class="defile">
+                                        <table>
+                                            <thead><tr><th>N°</th><th>Échéance</th><th class="d">Reste dû</th><th>État</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var f in sel.Factures.OrderBy(x => x.Echeance))
+                                                {
+                                                    var jours = Auj.DayNumber - f.Echeance.DayNumber;
+                                                    <tr>
+                                                        <td>@f.Numero</td>
+                                                        <td>@f.Echeance.ToString("dd/MM/yyyy")</td>
+                                                        <td class="d">@Fmt.Eur(f.Reste)</td>
+                                                        <td>@(f.EnLitige ? "En litige" : jours > 0 ? $"Échue depuis {jours} j" : "À échoir")</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+                                <section>
+                                    <h3>Historique des échanges</h3>
+                                    @if (sel.Historique.Count == 0)
+                                    {
+                                        <p class="vide">Aucun échange enregistré.</p>
+                                    }
+                                    else
+                                    {
+                                        <ol class="histo">
+                                            @foreach (var e in sel.Historique.OrderByDescending(x => x.Date))
+                                            {
+                                                <li><span>@e.Date.ToString("dd/MM/yyyy")</span> <strong>@e.Type</strong> @e.Detail</li>
+                                            }
+                                        </ol>
+                                    }
+                                </section>
+                            </div>
+                        </div>
+                    }
+                </main>
+            </div>
+        </div>
+    }
+</div>
+
+@if (message is not null)
+{
+    <div class="toast" role="status">@message</div>
+}
+
+@code {
+    const string Utilisateur = "Utilisateur connecté"; // à remplacer par l'identité issue de l'authentification
+
+    List<Compte> comptes = new();
+    Dictionary<string, Recommandation> analyses = new();
+    readonly HashSet<string> traites = new();
+    readonly List<Decision> journal = new(); // à persister en base pour une vraie traçabilité
+    Compte? sel;
+    Recommandation? rec;
+    string filtre = "traiter", recherche = "", objet = "", corps = "", commentaire = "", typeExpert = "Juridique";
+    Ton ton;
+    bool charge, valideParExpert, journalOuvert;
+    string? message;
+
+    DateOnly Auj => DateOnly.FromDateTime(DateTime.Today);
+    bool PeutEnvoyer => rec is { Action: not (TypeAction.Surveiller or TypeAction.Expert) };
+    bool EnvoiAutorise => !(rec?.NecessiteExpert ?? false) || valideParExpert;
+
+    protected override async Task OnInitializedAsync()
+    {
+        comptes = (await Erp.ChargerAsync()).ToList();
+        analyses = comptes.ToDictionary(c => c.Id, c => Moteur.Analyser(c, Auj));
+        charge = true;
+        await Selectionner(Visibles().FirstOrDefault());
+    }
+
+    IEnumerable<Compte> Visibles() => comptes
+        .Where(c => c.Nom.Contains(recherche, StringComparison.CurrentCultureIgnoreCase))
+        .Where(c => filtre switch
+        {
+            "traiter" => analyses[c.Id].Action != TypeAction.Surveiller && !traites.Contains(c.Id),
+            "experts" => analyses[c.Id].NecessiteExpert && !traites.Contains(c.Id),
+            _ => true
+        })
+        .OrderByDescending(c => analyses[c.Id].Priorite);
+
+    string Onglet(string f) => filtre == f ? "on" : "";
+    static string Classe(TypeAction a) => a switch
+    {
+        TypeAction.Expert or TypeAction.MiseEnDemeure => "expert",
+        TypeAction.RelanceFerme => "ferme",
+        TypeAction.Surveiller => "ok",
+        _ => "doux"
+    };
+
+    async Task Selectionner(Compte? c)
+    {
+        if (c is null) return;
+        sel = c; rec = analyses[c.Id]; commentaire = ""; valideParExpert = false;
+        typeExpert = rec.Action == TypeAction.Expert ? "Commercial" : "Juridique";
+        ton = rec.Action switch { TypeAction.RelanceFerme => Ton.Ferme, TypeAction.MiseEnDemeure => Ton.Formel, _ => Ton.Courtois };
+        await Rediger();
+    }
+
+    async Task Rediger()
+    {
+        if (sel is null || rec is null || !PeutEnvoyer) { objet = corps = ""; return; }
+        (objet, corps) = await Redacteur.GenererAsync(sel, rec, ton, Auj);
+    }
+
+    async Task ChangerTon(Ton t) { ton = t; await Rediger(); }
+
+    async Task Envoyer()
+    {
+        if (!PeutEnvoyer || !EnvoiAutorise) return;
+        // Branchez ici l'envoi réel (SMTP, Microsoft Graph, webhook n8n) une fois la validation humaine obtenue.
+        await Terminer($"Relance {ton.ToString().ToLower()} validée et envoyée");
+    }
+
+    async Task Escalader()
+    {
+        if (string.IsNullOrWhiteSpace(commentaire)) { await Notifier("Ajoutez un commentaire pour escalader."); return; }
+        await Terminer($"Escaladé à l'expert {typeExpert.ToLower()}");
+    }
+
+    async Task Ecarter()
+    {
+        if (string.IsNullOrWhiteSpace(commentaire)) { await Notifier("Ajoutez un commentaire pour écarter la recommandation."); return; }
+        await Terminer("Recommandation écartée");
+    }
+
+    async Task Reporter() => await Terminer("Reporté de 7 jours");
+
+    async Task Terminer(string action)
+    {
+        if (sel is null) return;
+        journal.Insert(0, new Decision(DateTime.Now, Utilisateur, sel.Nom, action, commentaire.Trim()));
+        traites.Add(sel.Id);
+        var courant = sel;
+        await Selectionner(Visibles().FirstOrDefault(x => x.Id != courant.Id) ?? courant);
+        await Notifier($"{action} : {courant.Nom}");
+    }
+
+    async Task Notifier(string texte)
+    {
+        message = texte;
+        StateHasChanged();
+        await Task.Delay(3500);
+        message = null;
+    }
+}

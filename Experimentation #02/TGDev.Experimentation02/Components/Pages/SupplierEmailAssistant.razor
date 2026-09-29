@@ -1,0 +1,333 @@
+﻿@page "/supplier-emails"
+@rendermode InteractiveServer
+@using TGDev.Experimentation02.SupplierEmails
+@inject ISupplierEmailService EmailService
+@inject IEmailAnalyzer Analyzer
+@inject IReplyWriter Writer
+
+<PageTitle>Assistant e-mails fournisseurs</PageTitle>
+
+<div class="shell">
+    <header class="top">
+        <div>
+            <h1>Assistant e-mails fournisseurs</h1>
+            <p>L'IA analyse la demande et vérifie l'ERP ; vous validez chaque réponse avant envoi.</p>
+        </div>
+        <button class="btn" aria-expanded="@logOpen" @onclick="() => logOpen = !logOpen">
+            Journal des décisions (@log.Count)
+        </button>
+    </header>
+
+    @if (!loaded)
+    {
+        <p class="empty">Chargement des e-mails…</p>
+    }
+    else
+    {
+        <div class="content">
+            <dl class="kpis">
+                <div><dt>E-mails à traiter</dt><dd>@emails.Count(e => !handled.Contains(e.Id))</dd></div>
+                <div><dt>Revue requise</dt><dd>@emails.Count(e => analyses[e.Id].NeedsHumanReview && !handled.Contains(e.Id))</dd></div>
+                <div><dt>Anomalies détectées</dt><dd>@emails.Sum(e => analyses[e.Id].AnomalyCount)</dd></div>
+                <div><dt>Décisions enregistrées</dt><dd>@log.Count</dd></div>
+            </dl>
+
+            @if (logOpen)
+            {
+                <section class="log" aria-label="Journal des décisions">
+                    <h3>Journal des décisions</h3>
+                    @if (log.Count == 0)
+                    {
+                        <p class="empty">Aucune décision pour l'instant.</p>
+                    }
+                    else
+                    {
+                        <ul>
+                            @foreach (var d in log)
+                            {
+                                <li>
+                                    <span>@d.Date.ToString("dd/MM HH:mm")</span>
+                                    <strong>@d.Email</strong>
+                                    <span>@d.Action, par @d.User@(d.Comment.Length > 0 ? " : " + d.Comment : "")</span>
+                                </li>
+                            }
+                        </ul>
+                    }
+                </section>
+            }
+
+            <div class="layout">
+                <aside class="list-zone" aria-label="E-mails fournisseurs">
+                    <input class="search" type="search" placeholder="Rechercher un fournisseur" aria-label="Rechercher un fournisseur"
+                           @bind="search" @bind:event="oninput" />
+                    <div class="tabs" role="group" aria-label="Filtre">
+                        <button class="@Tab("todo")" @onclick='() => filter = "todo"'>À traiter</button>
+                        <button class="@Tab("review")" @onclick='() => filter = "review"'>Revue requise</button>
+                        <button class="@Tab("all")" @onclick='() => filter = "all"'>Tous</button>
+                    </div>
+                    <ul class="list">
+                        @foreach (var e in Visible())
+                        {
+                            var a = analyses[e.Id];
+                            var urgency = Math.Min(100, a.Issues.Count * 30 + (a.NeedsHumanReview ? 20 : 0));
+                            <li>
+                                <button class="row @(selected?.Id == e.Id ? "active" : "")" @onclick="() => Select(e)">
+                                    <span class="r1"><span class="name">@e.SupplierName</span><span class="amount">@e.Received.ToString("dd/MM HH:mm")</span></span>
+                                    <span class="r2">@a.TypeLabel</span>
+                                    <span class="prio @Css(a)" title="Urgence @urgency sur 100"><i style="width:@(urgency)%"></i></span>
+                                </button>
+                            </li>
+                        }
+                    </ul>
+                </aside>
+
+                <main class="detail">
+                    @if (selected is null || current is null)
+                    {
+                        <p class="empty">Aucun e-mail à afficher avec ce filtre.</p>
+                    }
+                    else
+                    {
+                        <div class="card">
+                            <header class="card-head">
+                                <div>
+                                    <h2>@selected.Subject</h2>
+                                    <p>@selected.SupplierName, <a href="mailto:@selected.From">@selected.From</a> — @selected.Received.ToString("dd/MM/yyyy HH:mm")</p>
+                                </div>
+                                <dl class="figures">
+                                    <div><dt>Pièces jointes</dt><dd>@selected.Attachments.Count</dd></div>
+                                    <div><dt>Champs extraits</dt><dd>@current.Fields.Count</dd></div>
+                                    <div><dt>Anomalies</dt><dd>@current.AnomalyCount</dd></div>
+                                </dl>
+                            </header>
+
+                            <section class="reco @Css(current)" aria-labelledby="t-reco">
+                                <h3 id="t-reco">Analyse IA</h3>
+                                <p class="action">@current.TypeLabel</p>
+                                <p class="metrics">Confiance @current.Confidence%. Cette analyse est une aide à la décision, à vérifier avant envoi.</p>
+                                <ul class="reasons">
+                                    @foreach (var f in current.Fields)
+                                    {
+                                        <li>
+                                            @f.Name : @(f.Value ?? "—")
+                                            @if (f.Status != FieldStatus.Present)
+                                            {
+                                                <text> — @(f.Status == FieldStatus.Missing ? "manquant" : "incohérent") (@f.Note)</text>
+                                            }
+                                        </li>
+                                    }
+                                </ul>
+                                @if (current.NeedsHumanReview)
+                                {
+                                    <p class="expert"><strong>Vérification humaine requise.</strong> @current.ReviewReason</p>
+                                }
+                                @if (current.ErpChecks.Count > 0)
+                                {
+                                    <p class="sources">
+                                        Vérifications ERP :
+                                        @foreach (var c in current.ErpChecks)
+                                        {
+                                            <span>@c.InvoiceNumber : @c.Status@(c.Found ? "" : " (à confirmer)")</span>
+                                        }
+                                    </p>
+                                }
+                            </section>
+
+                            <section class="followup" aria-labelledby="t-fu">
+                                <h3 id="t-fu">Réponse proposée</h3>
+                                <label>Objet <input @bind="replySubject" /></label>
+                                <label>Message <textarea rows="10" @bind="replyBody"></textarea></label>
+                                @if (current.NeedsHumanReview)
+                                {
+                                    <label class="check"><input type="checkbox" @bind="reviewApproved" /> Un collaborateur a vérifié et validé cette réponse</label>
+                                }
+                            </section>
+
+                            @if (handled.Contains(selected.Id))
+                            {
+                                <p class="done">Décision enregistrée dans le journal pour cet e-mail.</p>
+                            }
+                            else
+                            {
+                                <section class="decision" aria-label="Décision">
+                                    <label>
+                                        Commentaire pour le journal <span class="hint">(obligatoire pour escalader ou écarter)</span>
+                                        <input @bind="comment" />
+                                    </label>
+                                    <div class="buttons">
+                                        <button class="btn primary" disabled="@(!SendAllowed)" @onclick="Send">Envoyer la réponse</button>
+                                        <select @bind="expertType" aria-label="Type d'expert">
+                                            <option>Comptabilité fournisseurs</option>
+                                            <option>Juridique</option>
+                                            <option>Achats</option>
+                                        </select>
+                                        <button class="btn" @onclick="Escalate">Escalader à un expert</button>
+                                        <button class="btn" @onclick="RequestInfo">Demander des précisions au fournisseur</button>
+                                        <button class="btn ghost" @onclick="Dismiss">Écarter (déjà traité)</button>
+                                    </div>
+                                </section>
+                            }
+
+                            <div class="split">
+                                <section>
+                                    <h3>Champs extraits</h3>
+                                    <div class="scroll">
+                                        <table>
+                                            <thead><tr><th>Champ</th><th>Valeur</th><th>Statut</th></tr></thead>
+                                            <tbody>
+                                                @foreach (var f in current.Fields)
+                                                {
+                                                    <tr>
+                                                        <td>@f.Name</td>
+                                                        <td>@(f.Value ?? "—")</td>
+                                                        <td>@(f.Status switch { FieldStatus.Present => "Présent", FieldStatus.Missing => "Manquant", _ => "Incohérent" })</td>
+                                                    </tr>
+                                                }
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </section>
+                                <section>
+                                    <h3>Pièces jointes</h3>
+                                    @if (selected.Attachments.Count == 0)
+                                    {
+                                        <p class="empty">Aucune pièce jointe.</p>
+                                    }
+                                    else
+                                    {
+                                        <ol class="history">
+                                            @foreach (var att in selected.Attachments)
+                                            {
+                                                <li><strong>@att.FileName</strong> — @att.Kind</li>
+                                            }
+                                        </ol>
+                                    }
+                                    @if (current.ErpChecks.Count > 0)
+                                    {
+                                        <h3 style="margin-top:1rem">Détail ERP</h3>
+                                        <div class="scroll">
+                                            <table>
+                                                <thead><tr><th>Facture</th><th>Statut</th><th>Échéance</th><th>Réglée le</th></tr></thead>
+                                                <tbody>
+                                                    @foreach (var c in current.ErpChecks)
+                                                    {
+                                                        <tr>
+                                                            <td>@c.InvoiceNumber</td>
+                                                            <td>@c.Status</td>
+                                                            <td>@(c.DueDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                                            <td>@(c.PaymentDate?.ToString("dd/MM/yyyy") ?? "—")</td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    }
+                                </section>
+                            </div>
+                        </div>
+                    }
+                </main>
+            </div>
+        </div>
+    }
+</div>
+
+@if (message is not null)
+{
+    <div class="toast" role="status">@message</div>
+}
+
+@code {
+    const string CurrentUser = "Utilisateur connecté"; // à remplacer par l'identité issue de l'authentification
+
+    List<SupplierEmailMsg> emails = new();
+    Dictionary<string, AnalysisResult> analyses = new();
+    readonly HashSet<string> handled = new();
+    readonly List<Decision> log = new(); // à persister en base pour une vraie traçabilité
+    SupplierEmailMsg? selected;
+    AnalysisResult? current;
+    string filter = "todo", search = "", replySubject = "", replyBody = "", comment = "", expertType = "Comptabilité fournisseurs";
+    bool loaded, reviewApproved, logOpen;
+    string? message;
+
+    bool SendAllowed => current is not null && (!current.NeedsHumanReview || reviewApproved);
+
+    protected override async Task OnInitializedAsync()
+    {
+        emails = (await EmailService.LoadAsync()).OrderByDescending(e => e.Received).ToList();
+        foreach (var e in emails)
+            analyses[e.Id] = await Analyzer.AnalyzeAsync(e);
+        loaded = true;
+        await Select(Visible().FirstOrDefault());
+    }
+
+    IEnumerable<SupplierEmailMsg> Visible() => emails
+        .Where(e => e.SupplierName.Contains(search, StringComparison.CurrentCultureIgnoreCase))
+        .Where(e => filter switch
+        {
+            "todo" => !handled.Contains(e.Id),
+            "review" => analyses[e.Id].NeedsHumanReview && !handled.Contains(e.Id),
+            _ => true
+        })
+        .OrderByDescending(e => analyses[e.Id].Issues.Count)
+        .ThenByDescending(e => e.Received);
+
+    string Tab(string f) => filter == f ? "on" : "";
+    static string Css(AnalysisResult a) => a.Type switch
+    {
+        RequestType.Dispute => "expert",
+        _ when a.NeedsHumanReview => "firm",
+        _ when a.Issues.Count > 0 => "soft",
+        _ => "ok"
+    };
+
+    async Task Select(SupplierEmailMsg? e)
+    {
+        if (e is null) return;
+        selected = e; current = analyses[e.Id]; comment = ""; reviewApproved = false;
+        (replySubject, replyBody) = await Writer.DraftAsync(e, current);
+    }
+
+    async Task Send()
+    {
+        if (!SendAllowed) return;
+        // Branchez ici l'envoi réel (Microsoft Graph / Outlook) une fois la validation obtenue.
+        await Complete("Réponse envoyée");
+    }
+
+    async Task Escalate()
+    {
+        if (string.IsNullOrWhiteSpace(comment)) { await Notify("Ajoutez un commentaire pour escalader."); return; }
+        await Complete($"Escaladé à l'expert {expertType.ToLower()}");
+    }
+
+    async Task RequestInfo()
+    {
+        if (string.IsNullOrWhiteSpace(comment)) { await Notify("Ajoutez un commentaire pour préciser la demande."); return; }
+        await Complete("Précisions demandées au fournisseur");
+    }
+
+    async Task Dismiss()
+    {
+        if (string.IsNullOrWhiteSpace(comment)) { await Notify("Ajoutez un commentaire pour écarter cet e-mail."); return; }
+        await Complete("Écarté (déjà traité)");
+    }
+
+    async Task Complete(string action)
+    {
+        if (selected is null) return;
+        log.Insert(0, new Decision(DateTime.Now, CurrentUser, selected.SupplierName, action, comment.Trim()));
+        handled.Add(selected.Id);
+        var currentEmail = selected;
+        await Select(Visible().FirstOrDefault(x => x.Id != currentEmail.Id) ?? currentEmail);
+        await Notify($"{action} : {currentEmail.SupplierName}");
+    }
+
+    async Task Notify(string text)
+    {
+        message = text;
+        StateHasChanged();
+        await Task.Delay(3500);
+        message = null;
+    }
+}

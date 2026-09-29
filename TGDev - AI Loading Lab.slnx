@@ -7,4 +7,7 @@
     <Project Path="Experimentation #01/TGDev.Step04.LocalLLM/TGDev.Step04.LocalLLM.csproj" />
     <Project Path="Experimentation #01/TGDev.StepS01.Shared/TGDev.StepS01.Shared.csproj" />
   </Folder>
+  <Folder Name="/Experimentation #02/">
+    <Project Path="Experimentation #02/TGDev.Experimentation02/TGDev.Experimentation02.csproj" />
+  </Folder>
 </Solution>
