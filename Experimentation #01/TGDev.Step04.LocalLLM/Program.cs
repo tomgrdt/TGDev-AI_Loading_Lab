@@ -1,5 +1,4 @@
-using TGDev.Step01.NewsRetrieval.Models;
-using TGDev.Step01.NewsRetrieval.Services;
+using TGDev.Step04.LocalLLM.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,9 +12,9 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
     {
-        Title = "News Retrieval API",
+        Title = "Local LLM API",
         Version = "v1",
-        Description = "Aggregates multiple RSS/Atom feeds and exposes the merged articles in JSON.",
+        Description = "Provides local language model capabilities.",
         Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
             Name = "TGDev - AI Loading Lab",
@@ -25,15 +24,13 @@ builder.Services.AddSwaggerGen(options =>
     //TODO : Ajouter l'authentification
 });
 
-builder.Services.AddHttpClient(nameof(FeedFetcherService), client =>
+builder.Services.AddHttpClient(nameof(LocalLLMService), client =>
 {
     client.Timeout = TimeSpan.FromSeconds(10);
-    client.DefaultRequestHeaders.Add("User-Agent", "TGDev.NewsRetrieval/1.0");
+    client.DefaultRequestHeaders.Add("User-Agent", "TGDev.LocalLLM/1.0");
 });
 
-builder.Services.Configure<FeedFetcherOptions>(builder.Configuration.GetSection(FeedFetcherOptions.SectionName));
-
-builder.Services.AddScoped<IFeedFetcherService, FeedFetcherService>();
+builder.Services.AddScoped<ILocalLLMService, LocalLLMService>();
 
 var app = builder.Build();
 

@@ -1,0 +1,6 @@
+@TGDev.Step04.LocalLLM_HostAddress = http://localhost:5066
+
+GET {{TGDev.Step04.LocalLLM_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
