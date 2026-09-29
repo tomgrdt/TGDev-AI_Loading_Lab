@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Net.Mime;
-using System.Text.Json;
-using TGDev.Step02.DatabaseStorage.Models;
+using TGDev.StepS01.Shared.Models;
 using TGDev.Step02.DatabaseStorage.Services;
 
 namespace TGDev.Step02.DatabaseStorage.Controllers;

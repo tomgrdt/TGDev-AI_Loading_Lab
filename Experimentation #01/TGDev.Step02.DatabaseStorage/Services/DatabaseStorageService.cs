@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Options;
-using TGDev.Step02.DatabaseStorage.Models;
-using TGDev.Step02.DatabaseStorage.Context;
-using Microsoft.EntityFrameworkCore;
+using TGDev.StepS01.Shared.Database;
+using TGDev.StepS01.Shared.Models;
 
 namespace TGDev.Step02.DatabaseStorage.Services;
 

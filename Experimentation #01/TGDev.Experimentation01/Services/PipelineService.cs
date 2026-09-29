@@ -1,6 +1,7 @@
 using TGDev.StepS01.Shared.Services;
 using System.Text;
 using TGDev.StepS01.Shared.Models;
+using System.Text.Json;
 
 namespace TGDev.Experimentation01.Services;
 
@@ -40,6 +41,9 @@ public class PipelineService
         var databaseStorageUrl = configuration["DatabaseStorage:BaseUrl"] ?? "https://localhost:7170";
         var databaseStorageSwaggerUrl = string.IsNullOrWhiteSpace(databaseStorageUrl) ? null : $"{databaseStorageUrl.TrimEnd('/')}/swagger/index.html";
 
+        var vectorizationUrl = configuration["Vectorization:BaseUrl"] ?? "https://localhost:7001";
+        var vectorizationSwaggerUrl = string.IsNullOrWhiteSpace(vectorizationUrl) ? null : $"{vectorizationUrl.TrimEnd('/')}/swagger/index.html";
+
         Etapes = new List<PipelineStep>
         {
             new()
@@ -69,6 +73,7 @@ public class PipelineService
                 Titre = "Vectoriser les informations",
                 Description = "Transforme les données en vecteurs pour la recherche sémantique par similarité.",
                 Icone = "bi-diagram-3",
+                SwaggerUrl = vectorizationSwaggerUrl,
                 Executer = Etape3_VectoriserAsync
             },
             new()
@@ -234,15 +239,33 @@ public class PipelineService
 
         int total = _sharedService.DatabaseStorageResult!.Count();
 
+        _sharedService.NoIndexedNewsItems = _sharedService.DatabaseStorageResult!.Where(n => !n.IsVectorized).ToList();
+
         step.Resume = $"{total} enregistrements";
         step.Indicateurs.Add(new KpiItem { Icone = "bi-database-check", Valeur = total.ToString(), Label = "Enregistrements insérés" });
         Log(step, NiveauJournal.Success, $"{total} articles insérés dans la base de connaissances.");
     }
 
-    private async Task Etape3_VectoriserAsync(PipelineStep etape, CancellationToken ct)
+    private async Task Etape3_VectoriserAsync(PipelineStep step, CancellationToken ct)
     {
-        await Task.Delay(700, ct); // TODO : appeler un modèle d'embeddings et stocker dans une base vectorielle (Qdrant, pgvector, etc.)
-        Log(etape, NiveauJournal.Success, "Vectorisation terminée (dimension 1536, 42 vecteurs indexés).");
+        step.SousTitreProgression = "Indexation des nouvelles actualités";
+        step.DetailProgression = $"{_sharedService.NoIndexedNewsItems.Count()} actualités à vectoriser";
+
+        var url = "https://localhost:7001/api/vectorization";
+        var response = await _httpClient.GetAsync(url, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Cela affichera le rapport d'erreur d'ASP.NET Core (souvent un objet ValidationProblemDetails)
+            string errorDetails = await response.Content.ReadAsStringAsync();
+            Console.WriteLine($"Détails de l'erreur 400 : {errorDetails}");
+        }
+        response.EnsureSuccessStatusCode();
+
+        var total = _sharedService.NoIndexedNewsItems.Count();
+        step.Resume = $"{total} enregistrements";
+        step.Indicateurs.Add(new KpiItem { Icone = "bi-diagram-3-check", Valeur = total.ToString(), Label = "Enregistrements insérés" });
+        Log(step, NiveauJournal.Success, $"Vectorisation terminée (dimension 1536, {total} vecteurs indexés).");
     }
 
     private async Task Etape4_EnrichirLLMAsync(PipelineStep etape, CancellationToken ct)

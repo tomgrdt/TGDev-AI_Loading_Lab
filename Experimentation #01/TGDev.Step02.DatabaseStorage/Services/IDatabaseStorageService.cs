@@ -1,4 +1,4 @@
-﻿using TGDev.Step02.DatabaseStorage.Models;
+﻿using TGDev.StepS01.Shared.Models;
 
 namespace TGDev.Step02.DatabaseStorage.Services;
 

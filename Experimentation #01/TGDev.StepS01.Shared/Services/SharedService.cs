@@ -6,6 +6,7 @@ public class SharedService : ISharedService
 {
     public string FeedFetcherJsonResult { get; set; } = string.Empty;
     public IEnumerable<NewsItemModel> DatabaseStorageResult { get; set; } = new List<NewsItemModel>();
+    public IEnumerable<NewsItemModel> NoIndexedNewsItems { get; set; } = new List<NewsItemModel>();
 
     public SharedService() { }
 }
