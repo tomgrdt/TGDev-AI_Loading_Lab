@@ -32,7 +32,7 @@ public class PipelineService
 
     public PipelineService(IConfiguration configuration)
     {
-        _sharedService = new SharedService();
+        _sharedService = new SharedService(configuration);
         _httpClient = new HttpClient();
 
         var newsRetrieverUrl = configuration["NewsRetrieval:BaseUrl"] ?? "https://localhost:7056";
@@ -265,7 +265,7 @@ public class PipelineService
         var total = _sharedService.NoIndexedNewsItems.Count();
         step.Resume = $"{total} enregistrements";
         step.Indicateurs.Add(new KpiItem { Icone = "bi-diagram-3-check", Valeur = total.ToString(), Label = "Enregistrements insérés" });
-        Log(step, NiveauJournal.Success, $"Vectorisation terminée (dimension 1536, {total} vecteurs indexés).");
+        Log(step, NiveauJournal.Success, $"Vectorisation terminée : • Collection {_sharedService.CollectionName} • {total} vecteurs indexés");
     }
 
     private async Task Etape4_EnrichirLLMAsync(PipelineStep etape, CancellationToken ct)

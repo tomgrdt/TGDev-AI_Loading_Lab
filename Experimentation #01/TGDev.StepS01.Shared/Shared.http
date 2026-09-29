@@ -1,6 +1,6 @@
 @TGDev.StepS01.Shared_HostAddress = http://localhost:5246
 
-GET {{TGDev.StepS01.Shared_HostAddress}}/weatherforecast/
+GET {{TGDev.StepS01.Shared_HostAddress}}/
 Accept: application/json
 
 ###

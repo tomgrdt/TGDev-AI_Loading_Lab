@@ -6,16 +6,13 @@ namespace TGDev.Step02.DatabaseStorage.Services;
 
 public class DatabaseStorageService : IDatabaseStorageService
 {
-    private readonly IHttpClientFactory _httpClientFactory;
     private readonly IMemoryCache _cache;
     private readonly ILogger<DatabaseStorageService> _logger;
 
     public DatabaseStorageService(
-        IHttpClientFactory httpClientFactory,
         IMemoryCache cache,
         ILogger<DatabaseStorageService> logger)
     {
-        _httpClientFactory = httpClientFactory;
         _cache = cache;
         _logger = logger;
     }

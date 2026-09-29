@@ -13,4 +13,5 @@ public interface ISharedService
     string FeedFetcherJsonResult { get; set; }
     IEnumerable<NewsItemModel> DatabaseStorageResult { get; set; }
     IEnumerable<NewsItemModel> NoIndexedNewsItems { get; set; }
+    string CollectionName { get; set; }
 }
