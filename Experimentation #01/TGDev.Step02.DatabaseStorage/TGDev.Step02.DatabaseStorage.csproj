@@ -14,4 +14,8 @@
     <ProjectReference Include="..\TGDev.StepS01.Shared\TGDev.StepS01.Shared.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Models\" />
+  </ItemGroup>
+
 </Project>

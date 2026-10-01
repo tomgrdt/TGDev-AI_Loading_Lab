@@ -1,4 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TGDev.StepS01.Shared.Models;
 
 namespace TGDev.StepS01.Shared.Database
@@ -30,6 +32,40 @@ namespace TGDev.StepS01.Shared.Database
             modelBuilder.Entity<NewsItemModel>()
                 .ToContainer("NewsItems")
                 .HasPartitionKey(n => n.Id);
+
+            var converter = new ValueConverter<ReadOnlyMemory<float>, float[]>(
+                v => v.ToArray(),
+                v => new ReadOnlyMemory<float>(v)
+            );
+
+            var comparer = new ValueComparer<ReadOnlyMemory<float>>(
+                (c1, c2) => CompareMemory(c1, c2),
+                c => GetHashCodeForMemory(c),
+                c => new ReadOnlyMemory<float>(c.ToArray())
+            );
+
+            modelBuilder.Entity<NewsItemModel>()
+                .Property(n => n.DescriptionEmbedding)
+                .HasConversion(converter, comparer);
+        }
+
+        // 1. Méthode pour comparer le contenu sans bloquer l'arbre d'expression EF Core
+        private static bool CompareMemory(ReadOnlyMemory<float> m1, ReadOnlyMemory<float> m2)
+        {
+            // Ici, nous ne sommes pas dans une expression lambda EF, l'usage de .Span est autorisé !
+            return MemoryExtensions.SequenceEqual<float>(m1.Span, m2.Span);
+        }
+
+        // 2. Méthode pour calculer le HashCode (déjà fournie précédemment, indispensable)
+        private static int GetHashCodeForMemory(ReadOnlyMemory<float> memory)
+        {
+            var hashCode = new HashCode();
+            var span = memory.Span;
+            for (int i = 0; i < span.Length; i++)
+            {
+                hashCode.Add(span[i]);
+            }
+            return hashCode.ToHashCode();
         }
     }
 }

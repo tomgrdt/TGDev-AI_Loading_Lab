@@ -8,12 +8,17 @@
 
   <ItemGroup>
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.7.3" />
-    <PackageReference Include="System.ServiceModel.Syndication" Version="8.0.0" />
     <PackageReference Include="Qdrant.Client" Version="1.19.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.Ollama" Version="1.80.1-alpha" />
+    <PackageReference Include="CommunityToolkit.VectorData.Qdrant" Version="1.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\TGDev.StepS01.Shared\TGDev.StepS01.Shared.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Models\" />
   </ItemGroup>
   
 </Project>

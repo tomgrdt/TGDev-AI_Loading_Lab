@@ -8,6 +8,6 @@ public class SharedService(IConfiguration configuration) : ISharedService
     public IEnumerable<NewsItemModel> DatabaseStorageResult { get; set; } = new List<NewsItemModel>();
     public IEnumerable<NewsItemModel> NoIndexedNewsItems { get; set; } = new List<NewsItemModel>();
 
-    public string CollectionName { get; set; } = configuration["QdrantCollection"] ?? string.Empty;
+    public string CollectionName { get; set; } = configuration["COLLECTION_NAME"] ?? string.Empty;
 
 }
