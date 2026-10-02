@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.Json;
-using System.Threading.Tasks;
-using TGDev.StepS01.Shared.Models;
+﻿using TGDev.StepS01.Shared.Models;
 
 namespace TGDev.StepS01.Shared.Services;
 
@@ -13,5 +7,5 @@ public interface ISharedService
     string FeedFetcherJsonResult { get; set; }
     IEnumerable<NewsItemModel> DatabaseStorageResult { get; set; }
     IEnumerable<NewsItemModel> NoIndexedNewsItems { get; set; }
-    string CollectionName { get; set; }
+    KernelModel KernelModel { get; set; }
 }

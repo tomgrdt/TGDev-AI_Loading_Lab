@@ -1,4 +1,5 @@
 using TGDev.Step04.LocalLLM.Services;
+using TGDev.StepS01.Shared.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,7 @@ builder.Services.AddHttpClient(nameof(LocalLLMService), client =>
 });
 
 builder.Services.AddScoped<ILocalLLMService, LocalLLMService>();
+builder.Services.AddScoped<ISharedService, SharedService>();
 
 var app = builder.Build();
 

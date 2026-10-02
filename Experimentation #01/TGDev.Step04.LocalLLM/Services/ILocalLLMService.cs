@@ -2,4 +2,5 @@
 
 public interface ILocalLLMService
 {
+    Task GetLocalLLMAsync(CancellationToken cancellationToken);
 }

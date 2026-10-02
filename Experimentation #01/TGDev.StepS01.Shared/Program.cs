@@ -1,3 +1,5 @@
+using TGDev.StepS01.Shared.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.

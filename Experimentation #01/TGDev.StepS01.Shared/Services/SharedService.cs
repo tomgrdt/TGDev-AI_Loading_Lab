@@ -7,7 +7,7 @@ public class SharedService(IConfiguration configuration) : ISharedService
     public string FeedFetcherJsonResult { get; set; } = string.Empty;
     public IEnumerable<NewsItemModel> DatabaseStorageResult { get; set; } = new List<NewsItemModel>();
     public IEnumerable<NewsItemModel> NoIndexedNewsItems { get; set; } = new List<NewsItemModel>();
-
-    public string CollectionName { get; set; } = configuration["COLLECTION_NAME"] ?? string.Empty;
+    
+    public KernelModel KernelModel { get; set; } = new KernelModel(configuration);
 
 }
