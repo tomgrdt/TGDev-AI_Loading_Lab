@@ -7,10 +7,12 @@
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step04.LocalLLM/TGDev.Step04.LocalLLM.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step07.Simulator/TGDev.Step07.Simulator.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.StepS01.Shared/TGDev.StepS01.Shared.csproj" />
-    <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.StepS02.Automation/TGDev.StepS02.Automation.csproj" />
+    <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.StepS02.Automation/TGDev.StepS02.Automation.csproj" Id="7c0ca2c9-df6e-4fa2-aa5b-5bda26bb7d3f" />
   </Folder>
   <Folder Name="/Experimentation #02 • FinOrchestra-Lab AI/">
     <Project Path="Experimentation #02 • FinOrchestra-Lab AI/TGDev.Experimentation02/TGDev.Experimentation02.csproj" />
   </Folder>
-  <Folder Name="/Experimentation #03 • Kinetic-Lab AI/" />
+  <Folder Name="/Experimentation #03 • Kinetic-Lab AI/">
+    <Project Path="TGDev.Experimentation03/TGDev.Experimentation03.csproj" Id="a57a48ae-a250-4c73-9c2f-382eb6195a36" />
+  </Folder>
 </Solution>

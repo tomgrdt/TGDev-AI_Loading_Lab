@@ -1,4 +1,4 @@
-@TGDev.StepS02.Automation_HostAddress = http://localhost:5134
+@TGDev.StepS02.Automation_HostAddress = http://localhost:5251
 
 GET {{TGDev.StepS02.Automation_HostAddress}}/weatherforecast/
 Accept: application/json
