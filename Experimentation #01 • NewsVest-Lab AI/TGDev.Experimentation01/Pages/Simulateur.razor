@@ -1,0 +1,225 @@
+﻿@using TGDev.Experimentation01.Services
+@using TGDev.StepS01.Shared.Models
+@inject PipelineService Pipeline
+@implements IDisposable
+
+<div class="simulateur-container">
+
+    <button class="status-btn pending" @onclick="Retour">
+        <i class="bi bi-arrow-left"></i> Retour au tableau de bord
+    </button>
+
+    <div class="page-content-header">
+        <h1>Simulateur de placements</h1>
+        <p class="subtitle">Confrontation des recommandations issues de l'analyse (étape 5) à une simulation de marché</p>
+    </div>
+
+    @{
+        var etapeSimulation = Pipeline.Etapes.First(e => e.Numero == 6);
+    }
+
+    @if (Pipeline.SharedService.Recommendations.Count == 0)
+    {
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-info-circle"></i> Aucune recommandation disponible</span></div>
+            <p class="empty-hint">
+                Le simulateur s'appuie sur les recommandations produites par l'étape 5 (Analyse).
+                Lance-la d'abord pour obtenir des positions à simuler — ou lance quand même une
+                simulation ci-dessous sur un portefeuille générique.
+            </p>
+            <button class="status-btn pending" @onclick="LancerEtape5">
+                <i class="bi bi-play-fill"></i> Lancer l'étape 5 — Analyse
+            </button>
+        </div>
+    }
+    else
+    {
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-clipboard-data"></i> Recommandations utilisées</span></div>
+            <div class="reco-table">
+                @foreach (var reco in Pipeline.SharedService.Recommendations)
+                {
+                    <div class="reco-row">
+                        <span class="reco-titre">@reco.Stock</span>
+                        <span class="badge badge-@ClasseAction(reco.Action)">@LibelleAction(reco.Action)</span>
+                        <span class="reco-poids">@reco.Weight.ToString("0")%</span>
+                        <span class="reco-confiance">Confiance : @reco.Confidence.ToString("0")%</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <div class="side-card simulateur-form">
+        <div class="side-card-header"><span><i class="bi bi-sliders"></i> Paramètres de la simulation</span></div>
+        <label class="capital-field">
+            Capital de départ
+            <div class="capital-input-wrap">
+                <input type="number" min="100" step="100" @bind="capitalSaisi" />
+                <span>€</span>
+            </div>
+        </label>
+        <button class="status-btn @ClasseBouton(etapeSimulation.Statut)"
+                disabled="@(etapeSimulation.Statut == StepStatus.EnCours)"
+                @onclick="LancerSimulation">
+            @(etapeSimulation.Statut == StepStatus.EnCours ? "Simulation en cours…" : "Lancer la simulation")
+        </button>
+        @if (etapeSimulation.Statut == StepStatus.EnCours)
+        {
+            <div class="progress-bar-track" style="margin-top:0.75rem;">
+                <div class="progress-bar-fill" style="width:@(etapeSimulation.Progression)%"></div>
+            </div>
+        }
+    </div>
+
+    @if (Pipeline.SharedService.LastSimulationResults is { } resultat)
+    {
+        var perf = resultat.PercentGlobalPerformance;
+
+        <div class="kpi-grid simulateur-kpis">
+            <div class="kpi-tile">
+                <i class="bi bi-cash"></i>
+                <div class="kpi-valeur">@resultat.InitialCapital.ToString("N0") €</div>
+                <div class="kpi-label">Capital initial</div>
+            </div>
+            <div class="kpi-tile">
+                <i class="bi bi-cash-stack"></i>
+                <div class="kpi-valeur">@resultat.FinalCapital.ToString("N0") €</div>
+                <div class="kpi-label">Capital final simulé</div>
+            </div>
+            <div class="kpi-tile">
+                <i class="bi @(perf >= 0 ? "bi-graph-up-arrow" : "bi-graph-down-arrow")"></i>
+                <div class="kpi-valeur @(perf >= 0 ? "valeur-positive" : "valeur-negative")">@(perf >= 0 ? "+" : "")@perf.ToString("0.0")%</div>
+                <div class="kpi-label">Performance globale</div>
+            </div>
+            <div class="kpi-tile">
+                <i class="bi bi-trophy"></i>
+                <div class="kpi-valeur">@(resultat.BestPosition?.Stock ?? "—")</div>
+                <div class="kpi-label">Meilleure position</div>
+            </div>
+        </div>
+
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-activity"></i> Évolution simulée du portefeuille</span></div>
+            <svg class="simulateur-chart" viewBox="0 0 600 180" preserveAspectRatio="none">
+                <polyline points="@ConstruirePoints(resultat.ValueCurve)" />
+            </svg>
+        </div>
+
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-list-columns"></i> Détail par position</span></div>
+            <div class="position-table">
+                <div class="position-row position-row-header">
+                    <span>Titre</span><span>Poids</span><span>Valeur allouée</span><span>Valeur finale</span><span>Performance</span>
+                </div>
+                @foreach (var position in resultat.Positions)
+                {
+                    <div class="position-row">
+                        <span>@position.Stock</span>
+                        <span>@position.Weight.ToString("0")%</span>
+                        <span>@position.AllocatedValue.ToString("N0") €</span>
+                        <span>@position.FinalValue.ToString("N0") €</span>
+                        <span class="@(position.PercentPerformance >= 0 ? "valeur-positive" : "valeur-negative")">
+                            @(position.PercentPerformance >= 0 ? "+" : "")@position.PercentPerformance.ToString("0.0")%
+                        </span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    @if (etapeSimulation.Journal.Count > 0)
+    {
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-journal-text"></i> Journal de la simulation</span></div>
+            <div class="journal-table">
+                @foreach (var ligne in etapeSimulation.Journal)
+                {
+                    <div class="journal-row">
+                        <span class="journal-time">@ligne.Horodatage.ToString("HH:mm:ss")</span>
+                        <span class="journal-level niveau-@ligne.Niveau.ToString().ToLower()">@ligne.Niveau.ToString().ToUpper()</span>
+                        <span class="journal-message">@ligne.Message</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <p class="simulateur-disclaimer">
+        <i class="bi bi-exclamation-triangle"></i>
+        Simulation à but expérimental : les variations de marché ci-dessus sont générées
+        aléatoirement pour cette démo. Ceci n'est pas un conseil en investissement.
+    </p>
+
+</div>
+
+@code {
+    private double capitalSaisi = 10000;
+
+    protected override void OnInitialized()
+    {
+        capitalSaisi = Pipeline.CalledUpCapital;
+        Pipeline.OnChange += Rafraichir;
+    }
+
+    private void Retour() => Pipeline.FermerSimulateur();
+
+    private async Task LancerEtape5() => await Pipeline.ExecuterEtapeAsync(5);
+
+    private async Task LancerSimulation()
+    {
+        Pipeline.CalledUpCapital = capitalSaisi;
+        await Pipeline.ExecuterEtapeAsync(6);
+    }
+
+    private void Rafraichir() => InvokeAsync(StateHasChanged);
+
+    private static string ClasseBouton(StepStatus statut) => statut switch
+    {
+        StepStatus.Termine => "done",
+        StepStatus.EnCours => "running",
+        StepStatus.Erreur => "error",
+        _ => "pending"
+    };
+
+    private static string ClasseAction(ActionRecommandee action) => action switch
+    {
+        ActionRecommandee.Achat => "success",
+        ActionRecommandee.Vente => "error",
+        _ => "pending"
+    };
+
+    private static string LibelleAction(ActionRecommandee action) => action switch
+    {
+        ActionRecommandee.Achat => "Achat",
+        ActionRecommandee.Vente => "Vente",
+        _ => "Conserver"
+    };
+
+    /// <summary>Construit la chaîne de points SVG (polyline) à partir de la courbe de valeur.</summary>
+    private static string ConstruirePoints(List<double> courbe)
+    {
+        if (courbe.Count < 2) return "";
+
+        var min = courbe.Min();
+        var max = courbe.Max();
+        var ecart = max - min;
+        if (ecart == 0) ecart = 1;
+
+        var culture = System.Globalization.CultureInfo.InvariantCulture;
+
+        var points = new List<string>();
+        for (int i = 0; i < courbe.Count; i++)
+        {
+            double x = i * (600.0 / (courbe.Count - 1));
+            double y = 170 - (courbe[i] - min) / ecart * 160; // marge haut/bas de 10px
+            points.Add($"{x.ToString("0.##", culture)},{y.ToString("0.##", culture)}");
+        }
+        return string.Join(" ", points);
+    }
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= Rafraichir;
+    }
+}
