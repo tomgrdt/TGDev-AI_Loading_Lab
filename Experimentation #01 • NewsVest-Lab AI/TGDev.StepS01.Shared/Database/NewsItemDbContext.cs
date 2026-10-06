@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.Azure.Cosmos.Linq;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TGDev.StepS01.Shared.Models;
@@ -29,9 +30,14 @@ namespace TGDev.StepS01.Shared.Database
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            modelBuilder.Entity<NewsItemModel>()
-                .ToContainer("NewsItems")
-                .HasPartitionKey(n => n.Id);
+            modelBuilder.Entity<NewsItemModel>(entity =>
+            {
+                entity.ToContainer("NewsItems");
+
+                entity.HasKey(n => n.Id);
+
+                entity.HasPartitionKey(n => n.PartitionKeyId);
+            });
 
             var converter = new ValueConverter<ReadOnlyMemory<float>, float[]>(
                 v => v.ToArray(),

@@ -54,10 +54,10 @@
         <div class="side-card-header"><span><i class="bi bi-sliders"></i> Paramètres de la simulation</span></div>
         <label class="capital-field">
             Capital de départ
-            <div class="capital-input-wrap">
+            <span class="capital-input-wrap">
                 <input type="number" min="100" step="100" @bind="capitalSaisi" />
                 <span>€</span>
-            </div>
+            </span>
         </label>
         <button class="status-btn @ClasseBouton(etapeSimulation.Statut)"
                 disabled="@(etapeSimulation.Statut == StepStatus.EnCours)"

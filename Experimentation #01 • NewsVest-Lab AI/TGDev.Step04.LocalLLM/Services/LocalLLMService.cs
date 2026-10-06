@@ -10,7 +10,7 @@ using TGDev.StepS01.Shared.Services;
 
 namespace TGDev.Step04.LocalLLM.Services;
 
-public class LocalLLMService :ILocalLLMService
+public class LocalLLMService : ILocalLLMService
 {
     private readonly IMemoryCache _cache;
     private readonly ILogger<LocalLLMService> _logger;
@@ -29,43 +29,33 @@ public class LocalLLMService :ILocalLLMService
     public async Task GetLocalLLMAsync(CancellationToken cancellationToken)
     {
         var chatHistory = new ChatHistory();
-        chatHistory.AddSystemMessage("You are a helpful assistant");
+        chatHistory.AddSystemMessage(PromptsService.GetSystemPrompt());
 
-        while(true)
+        var userInput = "Launch Analysis of the latest news articles related to AI and technology, focusing on their impact on society and future trends.";
+
+
+        KernelModel kernelModel = _sharedService.KernelModel;
+
+        var queryEmbedding = await kernelModel.EmbeddingGenerator.GenerateVectorAsync(userInput);
+        var results = kernelModel.NewsItemVectorStore.SearchAsync(queryEmbedding, 10, new VectorSearchOptions<NewsItemModel>
         {
-            Console.Write("User: ");
-            var userInput = Console.ReadLine();
-            if (string.IsNullOrWhiteSpace(userInput))
-                continue;
+            VectorProperty = NewsItemModel => NewsItemModel.DescriptionEmbedding
+        }, cancellationToken);
 
-            if(string.Equals(userInput, "Quit", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.WriteLine("Goodbye!");
-                break;
-            }
+        var searchedResult = new HashSet<string>();
+        var references = new HashSet<string>();
+        await foreach (var result in results)
+        {
+            searchedResult.Add($"[{result.Record.Title}]: {result.Record.Summary} Published on {result.Record.PublishedAt} '{result.Record.Link}'");
 
-            KernelModel kernelModel = _sharedService.KernelModel;
+            var score = result.Score ?? 0;
+            var percent = (score * 100).ToString("F2");
+            references.Add($"[{percent}%] {result.Record.Link}");
+        }
 
-            var queryEmbedding = await kernelModel.EmbeddingGenerator.GenerateVectorAsync(userInput);
-            var results = kernelModel.NewsItemVectorStore.SearchAsync(queryEmbedding, 10, new VectorSearchOptions<NewsItemModel>
-            {
-                VectorProperty = NewsItemModel => NewsItemModel.DescriptionEmbedding
-            }, cancellationToken);
+        var context = string.Join(Environment.NewLine, searchedResult);
 
-            var searchedResult = new HashSet<string>();
-            var references = new HashSet<string>();
-            await foreach(var result in results)
-            {
-                searchedResult.Add($"[{result.Record.Title}]: {result.Record.Summary} Published on {result.Record.PublishedAt} '{result.Record.Link}'");
-
-                var score = result.Score ?? 0;
-                var percent = (score * 100).ToString("F2");
-                references.Add($"[{percent}%] {result.Record.Link}");
-            }
-
-            var context = string.Join(Environment.NewLine, searchedResult);
-
-            var prompt = $"""
+        var prompt = $"""
                             Current Context:
                             {context}
                             
@@ -79,27 +69,26 @@ public class LocalLLMService :ILocalLLMService
                             Answer:";
                             """;
 
-            chatHistory.AddUserMessage(prompt);
+        chatHistory.AddUserMessage(prompt);
 
-            OpenAIPromptExecutionSettings promptSettings = new OpenAIPromptExecutionSettings
-            {
-                ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
-                FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
-            };
+        OpenAIPromptExecutionSettings promptSettings = new OpenAIPromptExecutionSettings
+        {
+            ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
+            FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()
+        };
 
-            var response = kernelModel.ChatClient.GetStreamingChatMessageContentsAsync(chatHistory, promptSettings, kernelModel.Kernel, cancellationToken);
+        var response = kernelModel.ChatClient.GetStreamingChatMessageContentsAsync(chatHistory, promptSettings, kernelModel.Kernel, cancellationToken);
 
-            var responseText = new StringBuilder();
-            await foreach(var message in response)
-                responseText.Append(message.Content);
+        var responseText = new StringBuilder();
+        await foreach (var message in response)
+            responseText.Append(message.Content);
 
-            chatHistory.AddAssistantMessage(responseText.ToString());
+        chatHistory.AddAssistantMessage(responseText.ToString());
 
-            if(references.Count > 0)
-            {
-                var referencesText = string.Join(Environment.NewLine, references);
-                chatHistory.AddAssistantMessage($"References: {referencesText}");
-            }
+        if (references.Count > 0)
+        {
+            var referencesText = string.Join(Environment.NewLine, references);
+            chatHistory.AddAssistantMessage($"References: {referencesText}");
         }
     }
 }

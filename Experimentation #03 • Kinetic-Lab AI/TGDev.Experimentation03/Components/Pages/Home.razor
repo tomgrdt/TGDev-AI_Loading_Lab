@@ -1,7 +1,76 @@
 ﻿@page "/"
+@using System.Threading
 
-<PageTitle>Home</PageTitle>
+<div class="agent-card @(AgentStatusClass)">
+    <!-- En-tête de l'Agent -->
+    <div class="agent-header">
+        <div class="agent-identity">
+            <span class="agent-pulse-dot"></span>
+            <div class="agent-titles">
+                <span class="agent-code">AGENT_03 // KINETIC-CORE</span>
+                <h3 class="agent-name">AutoPlan Engine</h3>
+            </div>
+        </div>
+        <span class="agent-badge">@StatusText</span>
+    </div>
 
-<h1>Hello, world!</h1>
+    <!-- Télémétrie en temps réel -->
+    <div class="telemetry-grid">
+        <div class="metric-box">
+            <span class="metric-label">FORM (TSB)</span>
+            <span class="metric-value positive">+12.4</span>
+            <span class="metric-unit">Optimal</span>
+        </div>
+        <div class="metric-box">
+            <span class="metric-label">HRV STATUS</span>
+            <span class="metric-value highlight">68 ms</span>
+            <span class="metric-unit">Balanced</span>
+        </div>
+        <div class="metric-box">
+            <span class="metric-label">TARGET LOAD</span>
+            <span class="metric-value">450</span>
+            <span class="metric-unit">TSS / wk</span>
+        </div>
+    </div>
 
-Welcome to your new app.
+    <!-- Zone de décision IA (Logs & Actions) -->
+    <div class="agent-decision-box">
+        <div class="decision-header">
+            <span class="icon">⚡</span>
+            <span>DERNIÈRE DÉCISION AGENT</span>
+            <span class="timestamp">14:02:45</span>
+        </div>
+        <p class="decision-text">
+            Récupération nocturne à <strong>92%</strong>. Détection d'un pic de forme.
+            Ajustement automatique du microcycle : conversion du footing en
+            <span class="highlight-text">4x8min PM (Seuil)</span> à 280W.
+        </p>
+    </div>
+
+    <!-- Graphique ou Métrique d'effort (Simulé Canvas/SVG) -->
+    <div class="mini-chart-container">
+        <svg class="sparkline" viewBox="0 0 300 40" preserveAspectRatio="none">
+            <path d="M0,35 Q30,10 60,25 T120,15 T180,30 T240,5 T300,20"
+                  fill="none"
+                  stroke="url(#gradient-cyan)"
+                  stroke-width="2" />
+            <defs>
+                <linearGradient id="gradient-cyan" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stop-color="#00F2FE" />
+                    <stop offset="100%" stop-color="#00E676" />
+                </linearGradient>
+            </defs>
+        </svg>
+    </div>
+
+    <!-- Actions Rapides -->
+    <div class="agent-footer">
+        <button class="btn-telemetry">EXPORTER VERS GARMIN</button>
+        <button class="btn-telemetry-secondary">OVERRIDE</button>
+    </div>
+</div>
+
+@code {
+    [Parameter] public string StatusText { get; set; } = "ACTIVE_DECISION";
+    private string AgentStatusClass => StatusText == "ACTIVE_DECISION" ? "status-active" : "status-idle";
+}

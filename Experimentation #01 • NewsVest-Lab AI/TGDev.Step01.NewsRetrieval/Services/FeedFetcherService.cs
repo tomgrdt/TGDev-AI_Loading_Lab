@@ -40,7 +40,7 @@ public class FeedFetcherService : IFeedFetcherService
 
         foreach (var category in _options.Categories)
         {
-            if (category.Feeds is null || !category.Feeds.Any())
+            if (category.Feeds is null || category.Feeds.Count == 0)
             {
                 _logger.LogWarning("La catégorie {CategoryName} n'a pas de flux configurés.", category.Name);
                 continue;
@@ -84,15 +84,14 @@ public class FeedFetcherService : IFeedFetcherService
                 ? new Uri(feedUrl).Host
                 : syndicationFeed.Title.Text;
 
-            return syndicationFeed.Items
+            return [..syndicationFeed.Items
                 .Take(_options.MaxItemsPerFeed)
-                .Select(item => MapToModel(item, sourceName, feedUrl, category))
-                .ToList();
+                .Select(item => MapToModel(item, sourceName, feedUrl, category))];
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Échec de la récupération du flux {FeedUrl}", feedUrl);
-            return Array.Empty<FeedItemModel>();
+            return [];
         }
     }
 

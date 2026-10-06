@@ -5,8 +5,9 @@ namespace TGDev.StepS01.Shared.Models;
 
 public class NewsItemModel
 {
+    public string? Id { get; set; }
     [VectorStoreKey]
-    public Guid Id { get; set; }
+    public Guid PartitionKeyId { get; set; }
     [VectorStoreData]
     public string? Title { get; set; }
     [VectorStoreData]

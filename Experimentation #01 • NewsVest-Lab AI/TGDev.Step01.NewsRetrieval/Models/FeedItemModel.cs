@@ -1,10 +1,13 @@
-﻿namespace TGDev.Step01.NewsRetrieval.Models;
+﻿using TGDev.StepS01.Shared.Models;
+
+namespace TGDev.Step01.NewsRetrieval.Models;
 
 /// <summary>
 /// Représente un article normalisé, quel que soit le flux d'origine (RSS ou Atom).
 /// </summary>
 public sealed class FeedItemModel
 {
+    public Guid Id { get; init; }
     public required string Title { get; init; }
     public required string Link { get; init; }
     public required string Category { get; init; }
@@ -17,7 +20,7 @@ public sealed class FeedItemModel
     {
         return new NewsItemModel
         {
-            Id = 0,
+            PartitionKeyId = Id,
             Title = this.Title,
             Link = this.Link,
             Category = this.Category,

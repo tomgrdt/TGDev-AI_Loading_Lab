@@ -3,6 +3,7 @@ using Microsoft.Extensions.AI;
 using TGDev.StepS01.Shared.Database;
 using TGDev.StepS01.Shared.Models;
 using TGDev.StepS01.Shared.Services;
+using Microsoft.EntityFrameworkCore;
 
 namespace TGDev.Step03.Vectorization.Services;
 
@@ -29,7 +30,7 @@ public class VectorizationService : IVectorizationService
         var collectionsList = await kernelModel.VectorStore.ListCollectionNamesAsync(cancellationToken).ToListAsync(cancellationToken);
 
         var context = new NewsItemDbContext();
-        var noIndexedNewsItems = context.NewsItems.Where(n => !n.IsVectorized).ToList();
+        var noIndexedNewsItems = await context.NewsItems.Where(n => !n.IsVectorized).ToListAsync(cancellationToken);
 
         if (collectionsList.Contains(kernelModel.QdrantCollectionName))
         {

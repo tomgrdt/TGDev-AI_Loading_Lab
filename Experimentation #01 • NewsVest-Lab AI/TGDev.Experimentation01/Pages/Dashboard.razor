@@ -9,6 +9,10 @@
     {
         <Simulateur />
     }
+    else if(Pipeline.OpenedAutomation)
+    {
+        <Automation />
+    }
     else
     {
 
@@ -36,6 +40,12 @@
                 <div class="hero-meta-line">Durée : @DureeTotale</div>
             </div>
         </section>
+
+        <div class="dashboard-toolbar">
+            <button class="status-btn pending" @onclick="() => Pipeline.OpenAutomation()">
+                <i class="bi bi-lightning-charge"></i> Automation
+            </button>
+        </div>
 
         @* -------------------------------------------------------------
        Barre d'onglets des 7 étapes : remplace l'ancien tracker en
@@ -283,6 +293,7 @@
     private void Selectionner(int numero)
     {
         Pipeline.FermerSimulateur();
+        Pipeline.CloseAutomation();
         Pipeline.SelectionnerEtape(numero);
     }
 

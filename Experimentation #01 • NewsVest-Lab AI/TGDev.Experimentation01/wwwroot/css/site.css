@@ -1036,6 +1036,63 @@ a,
     border-radius: 10px;
     background: #ffffff; /* Swagger UI est stylé pour un fond clair */
 }
+/* --- Toolbar au-dessus de la barre d'onglets --- */
+
+.dashboard-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.75rem;
+}
+
+/* --- Conteneur d'automatisation --- */
+
+.mode-switch {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 0.5rem;
+}
+
+.mode-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card-alt);
+    color: var(--text-secondary);
+    font-family: inherit;
+    font-size: 12.5px;
+}
+
+    .mode-option.is-active {
+        border-color: var(--accent-blue-border);
+        background: var(--accent-blue-bg);
+        color: var(--accent-blue-text);
+        font-weight: 600;
+    }
+
+    .mode-option:disabled {
+        opacity: 0.6;
+    }
+
+.auto-step-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    background: var(--bg-card-alt);
+    border: 1px solid var(--border-subtle);
+}
+
+.auto-step-title {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-primary);
+}
 
 /* --- Conteneur du simulateur de placements --- */
 

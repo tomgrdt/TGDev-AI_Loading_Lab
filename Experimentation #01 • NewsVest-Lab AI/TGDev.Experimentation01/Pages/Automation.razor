@@ -1,0 +1,159 @@
+﻿@inject PipelineService Pipeline
+@inject TGDev.StepS01.Shared.Services.IN8nWorkflowClient N8nClient
+@implements IDisposable
+
+<div class="simulateur-container">
+
+    <button class="status-btn pending" @onclick="Retour">
+        <i class="bi bi-arrow-left"></i> Retour au tableau de bord
+    </button>
+
+    <div class="page-content-header">
+        <h1>Automatisation de l'expérimentation</h1>
+        <p class="subtitle">Exécute les 7 étapes à la suite, sans intervention manuelle</p>
+    </div>
+
+    <div class="side-card">
+        <div class="side-card-header"><span><i class="bi bi-toggles"></i> Mode d'exécution</span></div>
+        <div class="mode-switch">
+            <button class="mode-option @(modeN8n ? "" : "is-active")" @onclick="() => modeN8n = false" disabled="@Pipeline.AutomationInProgress">
+                <i class="bi bi-cpu"></i> Exécution locale (C#)
+            </button>
+            <button class="mode-option @(modeN8n ? "is-active" : "")" @onclick="() => modeN8n = true" disabled="@Pipeline.AutomationInProgress">
+                <i class="bi bi-diagram-3"></i> Workflow n8n
+            </button>
+        </div>
+
+        @if (modeN8n && !N8nClient.EstConfigure)
+        {
+            <p class="empty-hint">
+                <i class="bi bi-exclamation-triangle"></i>
+                <code>N8n:WebhookUrl</code> n'est pas renseigné dans <code>appsettings.json</code> —
+                ce mode n'est donc pas encore utilisable. L'exécution locale reste disponible.
+            </p>
+        }
+
+        <button class="status-btn @(Pipeline.AutomationInProgress ? "running" : "done")"
+                disabled="@Pipeline.AutomationInProgress"
+                @onclick="Lancer"
+                style="margin-top:0.75rem;">
+            @if (Pipeline.AutomationInProgress)
+            {
+                <span><i class="bi bi-arrow-repeat spin"></i> Automatisation en cours…</span>
+            }
+            else
+            {
+                <span><i class="bi bi-lightning-charge"></i> Lancer l'automatisation complète</span>
+            }
+        </button>
+
+        @if (modeN8n && Pipeline.DerniereExecutionN8nId is not null)
+        {
+            <p class="empty-hint">
+                Exécution n8n : <code>@Pipeline.DerniereExecutionN8nId</code> —
+                statut : <strong>@Pipeline.DernierStatutN8n</strong>
+            </p>
+        }
+    </div>
+
+    @* ----------------------------------------------------------------
+       Suivi en direct des 7 étapes — se met à jour automatiquement
+       (Pipeline.OnChange) pendant l'exécution locale, exactement comme
+       si chaque bouton "Exécuter" avait été cliqué un par un.
+       ---------------------------------------------------------------- *@
+    <div class="side-card">
+        <div class="side-card-header"><span><i class="bi bi-list-check"></i> Avancement des étapes</span></div>
+        <div class="exp-list">
+            @foreach (var etape in Pipeline.Etapes)
+            {
+                <div class="auto-step-row status-@etape.Statut.ToString().ToLower()">
+                    <span class="step-tab-badge">
+                        @if (etape.Statut == StepStatus.Termine)
+                        {
+                            <i class="bi bi-check-lg"></i>
+                        }
+                        else if (etape.Statut == StepStatus.EnCours)
+                        {
+                            <i class="bi bi-arrow-repeat spin"></i>
+                        }
+                        else if (etape.Statut == StepStatus.Erreur)
+                        {
+                            <i class="bi bi-x-lg"></i>
+                        }
+                        else
+                        {
+                            <span>@etape.Numero.ToString("D2")</span>
+                        }
+                    </span>
+                    <span class="auto-step-title">@etape.Titre</span>
+                    <span class="badge badge-@ClasseBadge(etape.Statut)">@LibelleStatut(etape.Statut)</span>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (Pipeline.JournalAutomatisation.Count > 0)
+    {
+        <div class="side-card">
+            <div class="side-card-header"><span><i class="bi bi-journal-text"></i> Journal de l'automatisation</span></div>
+            <div class="journal-table">
+                @foreach (var ligne in Pipeline.JournalAutomatisation)
+                {
+                    <div class="journal-row">
+                        <span class="journal-time">@ligne.Horodatage.ToString("HH:mm:ss")</span>
+                        <span class="journal-level niveau-@ligne.Niveau.ToString().ToLower()">@ligne.Niveau.ToString().ToUpper()</span>
+                        <span class="journal-message">@ligne.Message</span>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+</div>
+
+@code {
+    private bool modeN8n = false;
+
+    protected override void OnInitialized()
+    {
+        Pipeline.OnChange += Rafraichir;
+    }
+
+    private void Retour() => Pipeline.CloseAutomation();
+
+    private async Task Lancer()
+    {
+        if (modeN8n && N8nClient.EstConfigure)
+        {
+            await Pipeline.LancerAutomatisationN8nAsync(N8nClient);
+        }
+        else
+        {
+            await Pipeline.ExecuterToutesLesEtapesAsync();
+        }
+    }
+
+    private void Rafraichir() => InvokeAsync(StateHasChanged);
+
+    private static string ClasseBadge(StepStatus statut) => statut switch
+    {
+        StepStatus.Termine => "success",
+        StepStatus.EnCours => "running",
+        StepStatus.Erreur => "error",
+        _ => "pending"
+    };
+
+    private static string LibelleStatut(StepStatus statut) => statut switch
+    {
+        StepStatus.EnAttente => "En attente",
+        StepStatus.EnCours => "En cours",
+        StepStatus.Termine => "Terminé",
+        StepStatus.Erreur => "Erreur",
+        _ => statut.ToString()
+    };
+
+    public void Dispose()
+    {
+        Pipeline.OnChange -= Rafraichir;
+    }
+}

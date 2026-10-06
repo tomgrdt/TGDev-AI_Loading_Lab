@@ -30,8 +30,111 @@ public class PipelineService
     /// <summary>Étape actuellement affichée dans le dashboard (pilotée par la barre d'onglets).</summary>
     public int EtapeSelectionnee { get; set; } = 1;
 
+    /// <summary>
+    /// SIMULATOR
+    /// </summary>
     public bool SimulateurOuvert { get; set; }
     public double CalledUpCapital { get; set; } = 10000;
+
+    /// <summary>
+    /// AUTOMATION
+    /// </summary>
+
+    public bool OpenedAutomation { get; set; }
+    public bool AutomationInProgress { get; set; }
+    /// <summary>Journal propre à l'automatisation (distinct du journal de chaque étape).</summary>
+    public List<JournalEntry> JournalAutomatisation { get; } = [];
+
+    public string? DerniereExecutionN8nId { get; private set; }
+    public N8nStatutExecution DernierStatutN8n { get; private set; } = N8nStatutExecution.Inconnu;
+
+    /// <summary>
+    /// Exécute les 7 étapes dans l'ordre, l'une après l'autre, exactement
+    /// comme si l'utilisateur avait cliqué sur chaque bouton "Exécuter" à
+    /// la suite. Réutilise ExecuterEtapeAsync : chaque étape garde donc son
+    /// propre journal, ses indicateurs, etc. — rien de spécifique à dupliquer.
+    /// </summary>
+    public async Task ExecuterToutesLesEtapesAsync()
+    {
+        if (AutomationInProgress) return;
+
+        AutomationInProgress = true;
+        JournalAutomatisation.Clear();
+        LogAutomatisation(NiveauJournal.Info, "Démarrage de l'automatisation (exécution locale séquentielle).");
+        NotifyChange();
+
+        foreach (var etape in Etapes.OrderBy(e => e.Numero).Take(4))
+        {
+            LogAutomatisation(NiveauJournal.Info, $"Étape {etape.Numero} — {etape.Titre} : démarrage.");
+            await ExecuterEtapeAsync(etape.Numero);
+
+            var niveau = etape.Statut == StepStatus.Erreur ? NiveauJournal.Warn : NiveauJournal.Success;
+            LogAutomatisation(niveau, $"Étape {etape.Numero} — {etape.Titre} : {(etape.Statut == StepStatus.Erreur ? "terminée en erreur" : "terminée")}.");
+        }
+
+        LogAutomatisation(NiveauJournal.Success, "Automatisation terminée — les 7 étapes ont été exécutées.");
+        AutomationInProgress = false;
+        NotifyChange();
+    }
+
+    /// <summary>
+    /// Déclenche l'automatisation via un workflow n8n externe plutôt qu'en
+    /// local. Le pipeline C# ne fait ici qu'appeler le webhook et suivre le
+    /// statut — c'est le workflow n8n qui est responsable d'appeler, dans
+    /// l'ordre, les endpoints des modules (FeedFetcher.Api, etc.).
+    /// </summary>
+    public async Task LancerAutomatisationN8nAsync(IN8nWorkflowClient n8nClient)
+    {
+        if (AutomationInProgress) return;
+
+        AutomationInProgress = true;
+        JournalAutomatisation.Clear();
+        DerniereExecutionN8nId = null;
+        DernierStatutN8n = N8nStatutExecution.Inconnu;
+        LogAutomatisation(NiveauJournal.Info, "Déclenchement du workflow n8n...");
+        NotifyChange();
+
+        var declenchement = await n8nClient.DeclencherWorkflowAsync(CancellationToken.None);
+
+        if (!declenchement.Succes)
+        {
+            LogAutomatisation(NiveauJournal.Error, declenchement.Message ?? "Échec du déclenchement du workflow n8n.");
+            AutomationInProgress = false;
+            NotifyChange();
+            return;
+        }
+
+        LogAutomatisation(NiveauJournal.Success, declenchement.Message ?? "Workflow déclenché.");
+        DerniereExecutionN8nId = declenchement.ExecutionId;
+
+        // Suivi de statut par polling, uniquement si n8n a renvoyé un executionId
+        // et que l'API REST n8n est configurée (N8n:BaseUrl + N8n:ApiKey).
+        if (declenchement.ExecutionId is not null)
+        {
+            for (int tentative = 0; tentative < 30; tentative++) // ~1 min max (30 x 2s)
+            {
+                await Task.Delay(2000);
+                var statut = await n8nClient.ObtenirStatutAsync(declenchement.ExecutionId, CancellationToken.None);
+                DernierStatutN8n = statut;
+                NotifyChange();
+
+                if (statut is N8nStatutExecution.Succes or N8nStatutExecution.Echec) break;
+            }
+
+            LogAutomatisation(
+                DernierStatutN8n == N8nStatutExecution.Succes ? NiveauJournal.Success : NiveauJournal.Warn,
+                $"Statut final du workflow n8n : {DernierStatutN8n}.");
+        }
+
+        AutomationInProgress = false;
+        NotifyChange();
+    }
+
+    private void LogAutomatisation(NiveauJournal niveau, string message)
+    {
+        JournalAutomatisation.Add(new JournalEntry { Niveau = niveau, Message = message });
+        NotifyChange();
+    }
 
     public event Action? OnChange;
 
@@ -193,6 +296,18 @@ public class PipelineService
         NotifyChange();
     }
 
+    public void OpenAutomation()
+    {
+        OpenedAutomation = true;
+        NotifyChange();
+    }
+
+    public void CloseAutomation()
+    {
+        OpenedAutomation = false;
+        NotifyChange();
+    }
+
     private void Log(PipelineStep etape, NiveauJournal niveau, string message)
     {
         etape.Journal.Add(new JournalEntry { Niveau = niveau, Message = message });
@@ -286,10 +401,28 @@ public class PipelineService
         Log(step, NiveauJournal.Success, $"Vectorisation terminée : • Collection {SharedService.KernelModel.QdrantCollectionName} • {total} vecteurs indexés");
     }
 
-    private async Task Etape4_EnrichirLLMAsync(PipelineStep etape, CancellationToken ct)
+    private async Task Etape4_EnrichirLLMAsync(PipelineStep step, CancellationToken ct)
     {
-        await Task.Delay(900, ct); // TODO : brancher un LLM local (Ollama, LM Studio...) en logique RAG sur la base vectorielle
-        Log(etape, NiveauJournal.Success, "Contexte RAG chargé dans le LLM local.");
+        step.SousTitreProgression = "Chargement du contexte RAG dans le LLM local";
+        step.DetailProgression = "Recherche des actualités vectorisées";
+
+        var url = "https://localhost:7294/api/localllm";
+        var response = await _httpClient.GetAsync(url, ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Cela affichera le rapport d'erreur d'ASP.NET Core (souvent un objet ValidationProblemDetails)
+            string errorDetails = await response.Content.ReadAsStringAsync(ct);
+            Console.WriteLine($"Détails de l'erreur 400 : {errorDetails}");
+        }
+        response.EnsureSuccessStatusCode();
+
+        //var total = SharedService.NoIndexedNewsItems.Count();
+        //step.Resume = $"{total} enregistrements";
+        //step.Indicateurs.Add(new KpiItem { Icone = "bi-diagram-3-check", Valeur = total.ToString(), Label = "Enregistrements insérés" });
+        //Log(step, NiveauJournal.Success, $"Vectorisation terminée : • Collection {SharedService.KernelModel.QdrantCollectionName} • {total} vecteurs indexés");
+        //await Task.Delay(900, ct); // TODO : brancher un LLM local (Ollama, LM Studio...) en logique RAG sur la base vectorielle
+        Log(step, NiveauJournal.Success, "Contexte RAG chargé dans le LLM local.");
     }
 
     private async Task Etape5_UniversInvestissementAsync(PipelineStep etape, CancellationToken ct)

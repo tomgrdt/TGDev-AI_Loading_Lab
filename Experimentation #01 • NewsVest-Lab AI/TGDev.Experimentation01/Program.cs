@@ -12,6 +12,9 @@ builder.Services.AddServerSideBlazor();
 builder.Services.AddScoped<PipelineService>();
 builder.Services.AddScoped<ISharedService, SharedService>();
 
+builder.Services.AddHttpClient();
+builder.Services.AddScoped<IN8nWorkflowClient, N8nWorkflowClient>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())

@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Caching.Memory;
+﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.Memory;
 using TGDev.StepS01.Shared.Database;
 using TGDev.StepS01.Shared.Models;
 
@@ -20,7 +21,7 @@ public class DatabaseStorageService : IDatabaseStorageService
     {
         // Implementation of the method to fetch database items
 
-        List<NewsItemModel> newsItemsAdded = new List<NewsItemModel>();
+        List<NewsItemModel> newsItemsAdded = [];
 
         //TODO: Implementer la logique de gestion du cache ici si mise en place d'une authentification.
         //if (_cache.TryGetValue(CacheKey, out IReadOnlyList<NewsItemModel>? cached) && cached is not null)
@@ -34,18 +35,19 @@ public class DatabaseStorageService : IDatabaseStorageService
 
         foreach (var newsItem in listNewsItems)
         {
-            if(context.NewsItems.Where(n => n.Link == newsItem.Link).Count() > 0)
+            if(await context.NewsItems.FirstOrDefaultAsync(n => n.Link == newsItem.Link) != null)
             {
                 _logger.LogInformation("News item with title {Title} already exists in the database.", newsItem.Title);
                 continue; // Skip adding this item if it already exists
             }
-            newsItem.Id = new Guid();
+            newsItem.PartitionKeyId = Guid.NewGuid();
+            newsItem.Id = newsItem.PartitionKeyId.ToString();
             context.NewsItems.Add(newsItem);
             newsItemsAdded.Add(newsItem);
         }
 
         await context.SaveChangesAsync(cancellationToken);
-        
+
         return newsItemsAdded;
 
         //TODO: Implementer la logique de gestion du cache ici si mise en place d'une authentification.
