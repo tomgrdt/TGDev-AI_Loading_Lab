@@ -5,18 +5,13 @@ using TGDev.StepS01.Shared.Models;
 
 namespace TGDev.Step02.DatabaseStorage.Services;
 
-public class DatabaseStorageService : IDatabaseStorageService
+public class DatabaseStorageService(
+    IMemoryCache cache,
+    ILogger<DatabaseStorageService> logger) : IDatabaseStorageService
 {
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<DatabaseStorageService> _logger;
+    private readonly IMemoryCache _cache = cache;
+    private readonly ILogger<DatabaseStorageService> _logger = logger;
 
-    public DatabaseStorageService(
-        IMemoryCache cache,
-        ILogger<DatabaseStorageService> logger)
-    {
-        _cache = cache;
-        _logger = logger;
-    }
     public async Task<IEnumerable<NewsItemModel>> PostDatabaseStorageAsync(List<NewsItemModel> listNewsItems, CancellationToken cancellationToken = default)
     {
         // Implementation of the method to fetch database items
@@ -35,7 +30,7 @@ public class DatabaseStorageService : IDatabaseStorageService
 
         foreach (var newsItem in listNewsItems)
         {
-            if(await context.NewsItems.FirstOrDefaultAsync(n => n.Link == newsItem.Link) != null)
+            if(await context.NewsItems.FirstOrDefaultAsync(n => n.Link == newsItem.Link, cancellationToken) != null)
             {
                 _logger.LogInformation("News item with title {Title} already exists in the database.", newsItem.Title);
                 continue; // Skip adding this item if it already exists

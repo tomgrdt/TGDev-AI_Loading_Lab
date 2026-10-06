@@ -4,7 +4,7 @@
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step01.NewsRetrieval/TGDev.Step01.NewsRetrieval.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step02.DatabaseStorage/TGDev.Step02.DatabaseStorage.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step03.Vectorization/TGDev.Step03.Vectorization.csproj" />
-    <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step04.LocalLLM/TGDev.Step04.LocalLLM.csproj" />
+    <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step05.LocalLLM/TGDev.Step05.LocalLLM.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.Step07.Simulator/TGDev.Step07.Simulator.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.StepS01.Shared/TGDev.StepS01.Shared.csproj" />
     <Project Path="Experimentation #01 • NewsVest-Lab AI/TGDev.StepS02.Automation/TGDev.StepS02.Automation.csproj" Id="7c0ca2c9-df6e-4fa2-aa5b-5bda26bb7d3f" />

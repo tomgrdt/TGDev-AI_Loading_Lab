@@ -10,21 +10,14 @@ using TGDev.StepS01.Shared.Services;
 
 namespace TGDev.Step04.LocalLLM.Services;
 
-public class LocalLLMService : ILocalLLMService
+public class LocalLLMService(
+    IMemoryCache cache,
+    ILogger<LocalLLMService> logger,
+    ISharedService sharedService) : ILocalLLMService
 {
-    private readonly IMemoryCache _cache;
-    private readonly ILogger<LocalLLMService> _logger;
-    private readonly ISharedService _sharedService;
-
-    public LocalLLMService(
-        IMemoryCache cache,
-        ILogger<LocalLLMService> logger,
-        ISharedService sharedService)
-    {
-        _cache = cache;
-        _logger = logger;
-        _sharedService = sharedService;
-    }
+    private readonly IMemoryCache _cache = cache;
+    private readonly ILogger<LocalLLMService> _logger = logger;
+    private readonly ISharedService _sharedService = sharedService;
 
     public async Task GetLocalLLMAsync(CancellationToken cancellationToken)
     {
@@ -36,7 +29,7 @@ public class LocalLLMService : ILocalLLMService
 
         KernelModel kernelModel = _sharedService.KernelModel;
 
-        var queryEmbedding = await kernelModel.EmbeddingGenerator.GenerateVectorAsync(userInput);
+        var queryEmbedding = await kernelModel.EmbeddingGenerator.GenerateVectorAsync(userInput,null, cancellationToken);
         var results = kernelModel.NewsItemVectorStore.SearchAsync(queryEmbedding, 10, new VectorSearchOptions<NewsItemModel>
         {
             VectorProperty = NewsItemModel => NewsItemModel.DescriptionEmbedding
@@ -71,7 +64,7 @@ public class LocalLLMService : ILocalLLMService
 
         chatHistory.AddUserMessage(prompt);
 
-        OpenAIPromptExecutionSettings promptSettings = new OpenAIPromptExecutionSettings
+        OpenAIPromptExecutionSettings promptSettings = new()
         {
             ToolCallBehavior = ToolCallBehavior.AutoInvokeKernelFunctions,
             FunctionChoiceBehavior = FunctionChoiceBehavior.Auto()

@@ -188,20 +188,20 @@ public class PipelineService
             new()
             {
                 Numero = 4,
-                Phase = "Phase 1 : Ingestion et intelligence locale",
-                Titre = "Enrichir un LLM local (RAG)",
-                Description = "Alimente un LLM local avec la base de connaissances pour un raisonnement contextualisé.",
-                Icone = "bi-cpu",
-                Executer = Etape4_EnrichirLLMAsync
-            },
-            new()
-            {
-                Numero = 5,
                 Phase = "Phase 2 : Analyse et validation du marché",
                 Titre = "Constituer un univers d'investissement",
                 Description = "Récupère une liste d'actions et d'ETF représentatifs de la diversité du marché.",
                 Icone = "bi-pie-chart",
-                Executer = Etape5_UniversInvestissementAsync
+                Executer = Etape4_UniversInvestissementAsync
+            },
+            new()
+            {
+                Numero = 5,
+                Phase = "Phase 1 : Ingestion et intelligence locale",
+                Titre = "Enrichir un LLM local (RAG)",
+                Description = "Alimente un LLM local avec la base de connaissances pour un raisonnement contextualisé.",
+                Icone = "bi-cpu",
+                Executer = Etape5_EnrichirLLMAsync
             },
             new()
             {
@@ -401,7 +401,17 @@ public class PipelineService
         Log(step, NiveauJournal.Success, $"Vectorisation terminée : • Collection {SharedService.KernelModel.QdrantCollectionName} • {total} vecteurs indexés");
     }
 
-    private async Task Etape4_EnrichirLLMAsync(PipelineStep step, CancellationToken ct)
+    private async Task Etape4_UniversInvestissementAsync(PipelineStep etape, CancellationToken ct)
+    {
+        string[] titres = [ "CAC 40", "S&P 500", "MSCI World ETF", "Nasdaq 100 ETF" ];
+        foreach (var titre in titres)
+        {
+            ct.ThrowIfCancellationRequested();
+            await Task.Delay(300, ct); // TODO : appeler une API de données de marché (ex. données boursières)
+            Log(etape, NiveauJournal.Success, $"Ajouté à l'univers : {titre}");
+        }
+    }
+    private async Task Etape5_EnrichirLLMAsync(PipelineStep step, CancellationToken ct)
     {
         step.SousTitreProgression = "Chargement du contexte RAG dans le LLM local";
         step.DetailProgression = "Recherche des actualités vectorisées";
@@ -423,17 +433,6 @@ public class PipelineService
         //Log(step, NiveauJournal.Success, $"Vectorisation terminée : • Collection {SharedService.KernelModel.QdrantCollectionName} • {total} vecteurs indexés");
         //await Task.Delay(900, ct); // TODO : brancher un LLM local (Ollama, LM Studio...) en logique RAG sur la base vectorielle
         Log(step, NiveauJournal.Success, "Contexte RAG chargé dans le LLM local.");
-    }
-
-    private async Task Etape5_UniversInvestissementAsync(PipelineStep etape, CancellationToken ct)
-    {
-        string[] titres = [ "CAC 40", "S&P 500", "MSCI World ETF", "Nasdaq 100 ETF" ];
-        foreach (var titre in titres)
-        {
-            ct.ThrowIfCancellationRequested();
-            await Task.Delay(300, ct); // TODO : appeler une API de données de marché (ex. données boursières)
-            Log(etape, NiveauJournal.Success, $"Ajouté à l'univers : {titre}");
-        }
     }
 
     private async Task Etape6_AnalyseLLMAsync(PipelineStep etape, CancellationToken ct)

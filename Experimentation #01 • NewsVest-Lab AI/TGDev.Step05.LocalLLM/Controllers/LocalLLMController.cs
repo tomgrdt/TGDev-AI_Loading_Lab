@@ -6,14 +6,9 @@ namespace TGDev.Step04.LocalLLM.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class LocalLLMController : Controller
+public class LocalLLMController(ILogger<LocalLLMController> logger) : Controller
 {
-    private readonly ILogger<LocalLLMController> _logger;
-
-    public LocalLLMController(ILogger<LocalLLMController> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<LocalLLMController> _logger = logger;
 
     [HttpGet(Name = "RunLocalLLM"),
         Tags(["Local LLM API"]),

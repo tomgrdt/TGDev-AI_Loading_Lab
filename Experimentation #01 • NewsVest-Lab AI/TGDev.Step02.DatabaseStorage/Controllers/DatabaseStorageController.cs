@@ -5,17 +5,11 @@ using TGDev.Step02.DatabaseStorage.Services;
 
 namespace TGDev.Step02.DatabaseStorage.Controllers;
 
-
 [ApiController]
 [Route("api/[controller]")]
-public class DatabaseStorageController : ControllerBase
+public class DatabaseStorageController(ILogger<DatabaseStorageController> logger) : ControllerBase
 {
-    private readonly ILogger<DatabaseStorageController> _logger;
-
-    public DatabaseStorageController(ILogger<DatabaseStorageController> logger)
-    {
-        _logger = logger;
-    }
+    private readonly ILogger<DatabaseStorageController> _logger = logger;
 
     [HttpPost(Name = "PostDatabaseStorage"),
         Tags(["Database Storage API"]),
